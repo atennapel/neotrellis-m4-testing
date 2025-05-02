@@ -1,4 +1,4 @@
-# Left 4x4 to control notes, right 4x4 to control synth settings
+# Midi controller
 
 import time
 import board
