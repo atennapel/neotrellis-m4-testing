@@ -1,7 +1,6 @@
 import time
 import board
 import audioio
-import audiomixer
 import adafruit_trellism4
 from util import *
 from kits import Kits
@@ -32,7 +31,7 @@ print("mixer started")
 print("time: %f" % (time.monotonic() - timestamp))
 
 screen = MainScreen(trellis, kits)
-screen.init()
+screen.draw()
 
 pressed = set()
 

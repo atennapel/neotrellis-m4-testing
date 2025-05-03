@@ -1,7 +1,5 @@
 from util import *
 
-KIT_SELECTION_BUTTON = (3, 4)
-
 PARAM_BUTTON = [(2, 4), (2, 5), (2, 6), (2, 7), (1, 4), (1, 5), (1, 6), (1, 7)]
 
 class KitScreen:
@@ -12,11 +10,10 @@ class KitScreen:
     self.selectedSample = (0, 0)
     self.selectedSampleRef = self.kits[self.selectedSample[0]][self.selectedSample[1]]
 
-  def init(self):
-    self.draw()
-
   def draw(self):
-    self.trellis.pixels[PARAM_BUTTON[0]] = BLUEH
+    for i in range(8):
+      self.trellis.pixels[PARAM_BUTTON[i]] = OFF
+    self.trellis.pixels[PARAM_BUTTON[0]] = self.selectedSampleRef.modeColor()
     for y in range(4):
       for x in range(4):
         i = ix4x4b(y, x)
@@ -44,7 +41,7 @@ class KitScreen:
       self.selectedKit = i
       self.trellis.pixels[pos4x4(self.selectedKit)] = GREEN
 
-  def input(self, pressed, downs, ups):
+  def input(self, pressed, downs, ups, page_button_held):
     kits = self.kits
     trellis = self.trellis
     for down in downs:
@@ -53,7 +50,7 @@ class KitScreen:
       if (y, x) == PARAM_BUTTON[0]:
         self.trellis.pixels[PARAM_BUTTON[0]] = RED
       elif x < 4:
-        if KIT_SELECTION_BUTTON in pressed:
+        if page_button_held:
           self.selectKit(ix4x4(y, x))
         else:
           sample_ix = ix4x4b(y, x)
@@ -75,35 +72,67 @@ class KitScreen:
         self.selectedSampleRef.nextMode()
         self.trellis.pixels[PARAM_BUTTON[0]] = self.selectedSampleRef.modeColor()
       elif x < 4:
-        if not (KIT_SELECTION_BUTTON in pressed):
+        if not page_button_held:
           sample_ix = ix4x4b(y, x)
           if kits.available(self.selectedKit, sample_ix):
             kits.stop(self.selectedKit, sample_ix)
             selected = self.selectedSample == (self.selectedKit, sample_ix)
             trellis.pixels[up] = GREENH if selected else BLUEH
 
+class PatternScreen:
+  def __init__(self, trellis):
+    self.trellis = trellis
+
+  def draw(self):
+    for i in range(16):
+      self.trellis.pixels[pos4x4(i)] = OFF
+    for i in range(8):
+      self.trellis.pixels[PARAM_BUTTON[i]] = OFF
+
+  def drawSelection(self):
+    pass
+
+  def input(self, pressed, downs, ups, page_button_held):
+    pass
+
+KIT_SELECTION_BUTTON = (3, 4)
+PATTERN_SELECTION_BUTTON = (3, 5)
+
 class MainScreen:
   def __init__(self, trellis, kits):
     self.trellis = trellis
     self.kitScreen = KitScreen(trellis, kits)
-    self.selectedScreen = 0
-
-  def init(self):
-    self.draw()
-    self.kitScreen.draw()
+    self.patternScreen = PatternScreen(trellis)
+    self.selectedScreen = self.kitScreen
 
   def draw(self):
-    for x in range(1):
+    for x in range(2):
       color = BLUEH
-      if x == self.selectedScreen:
+      if (self.selectedScreen == self.kitScreen and x == 0) or (self.selectedScreen == self.patternScreen and x == 1):
         color = GREENH
       self.trellis.pixels[(3, x + 4)] = color
+    self.selectedScreen.draw()
 
   def input(self, pressed, downs, ups):
     if KIT_SELECTION_BUTTON in downs:
+      self.selectedScreen = self.kitScreen
+      self.draw()
       self.trellis.pixels[KIT_SELECTION_BUTTON] = GREEN
-      self.kitScreen.drawSelection()
+      self.selectedScreen.drawSelection()
     elif KIT_SELECTION_BUTTON in ups:
-      self.trellis.pixels[KIT_SELECTION_BUTTON] = GREENH
-      self.kitScreen.draw()
-    self.kitScreen.input(pressed, downs, ups)
+      self.selectedScreen = self.kitScreen
+      self.draw()
+    elif PATTERN_SELECTION_BUTTON in downs:
+      self.selectedScreen = self.patternScreen
+      self.draw()
+      self.trellis.pixels[PATTERN_SELECTION_BUTTON] = GREEN
+      self.selectedScreen.drawSelection()
+    elif PATTERN_SELECTION_BUTTON in ups:
+      self.selectedScreen = self.patternScreen
+      self.draw()
+    page_button_held = False
+    if self.selectedScreen == self.patternScreen and PATTERN_SELECTION_BUTTON in pressed:
+      page_button_held = True
+    elif self.selectedScreen == self.kitScreen and KIT_SELECTION_BUTTON in pressed:
+      page_button_held = True
+    self.selectedScreen.input(pressed, downs, ups, page_button_held)
