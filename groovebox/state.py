@@ -1,13 +1,20 @@
-from model import Model, Kit, Sample, Synth
 import os
 import audiocore
 import audiomixer
+from model import Model, Kit, Sample, Synth
 
 class State:
-  def __init__(self, kitsPath):
+  def __init__(self, ui, kitsPath):
+    self.ui = ui
+
     self.voices = []
     self.model = self.initializeModel(kitsPath)
     self.mixer = self.initializeMixer()
+
+    self.step = 15
+    self.playing = False
+
+    self.currentInstrument = self.model.instrument[0]
 
   # initialization
   def initializeModel(self, path):
@@ -90,3 +97,14 @@ class State:
         self.mixer.stop_voice(sample.voice)
     elif isinstance(instrument, Synth):
       self.voices[instrument.voice].release(note)
+
+  # update
+  def tick(self):
+    if self.playing:
+      self.ui.beforeStep(self)
+    self.step = (self.step + 1) % 16
+    if self.playing:
+      self.ui.step(self)
+
+  def input(self, pressed, downs, ups):
+    pass

@@ -44,3 +44,4 @@ class Model:
   def __init__(self):
     self.instruments = [None] * 16
     self.patterns = [None] * 16
+    self.bpm = 120
