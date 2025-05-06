@@ -13,16 +13,34 @@ class Pattern:
 
   def __getitem__(self, i):
     return self.steps[i]
-
-class Song:
-  def __init__(self):
-    self.patterns = [None] * 16
-
-class Instrument:
-  def __init__(self, id):
+  
+class Synth:
+  def __init__(self, id, voice):
     self.id = id
+    self.voice = voice
 
-class State:
+class Sample:
+  MODE_HOLD = 0
+  MODE_ONESHOT = 1
+  MODE_LOOP = 2
+
+  def __init__(self, path, id, note, voice):
+    self.path = path
+    self.id = id
+    self.note = note
+    self.voice = voice
+    self.mode = Sample.MODE_HOLD
+
+class Kit:
+  def __init__(self, path, id, samples):
+    self.path = path
+    self.id = id
+    self.samples = samples
+
+  def __len__(self):
+    return len(self.samples)
+
+class Model:
   def __init__(self):
     self.instruments = [None] * 16
-    self.songs = [None] * 16
+    self.patterns = [None] * 16
