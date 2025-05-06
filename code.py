@@ -36,9 +36,18 @@ screen.draw()
 pressed = set()
 
 while True:
-  newpressed = set(trellis.pressed_keys)
-  downs = newpressed - pressed
-  ups = pressed - newpressed
-  screen.input(newpressed, downs, ups)
-  pressed = newpressed
-  time.sleep(0.01)
+  stamp = time.monotonic()
+
+  screen.tick()
+
+  diff = time.monotonic() - stamp
+  while diff < 60 / (screen.bpm * 4):
+    newpressed = set(trellis.pressed_keys)
+    downs = newpressed - pressed
+    ups = pressed - newpressed
+    screen.input(newpressed, downs, ups)
+    pressed = newpressed
+    time.sleep(0.01)
+    diff = time.monotonic() - stamp
+
+  print(diff)
