@@ -75,7 +75,7 @@ class PatternPage:
           state.currentPattern = pattern
           if prevPattern:
             id = prevPattern.id
-            pos = ((3 - (id // 4)), id % 4)
+            pos = (3 - (id // 4), id % 4)
             pixels[pos] = OFF if prevPattern.empty else BLUEH
           pixels[down] = GREENH
         else:
