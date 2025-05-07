@@ -1,6 +1,7 @@
 import os
 import audiocore
 import audiomixer
+import synthio
 from model import Model, Kit, Sample, Synth
 
 class State:
@@ -14,7 +15,12 @@ class State:
     self.step = 15
     self.playing = False
 
-    self.currentInstrument = self.model.instrument[0]
+    self.currentInstrument = None
+    self.selectedInstrument = None
+    self.selectedNote = None
+    self.notes = {}
+
+    self.currentPattern = None
 
   # initialization
   def initializeModel(self, path):
@@ -75,36 +81,57 @@ class State:
   def initializeSynth(self, id, synth):
     voice = len(self.voices)
     self.voices.append(synth)
+    self.notes[id] = {}
     modelSynth = Synth(id, voice)
     self.mixer.voice[voice].play(synth)
     return modelSynth
 
   # actions
-  def noteOn(self, instrumentId, note):
-    instrument = self.model.instruments[instrumentId]
+  def noteOnInstrument(self, instrument, note):
     if isinstance(instrument, Kit):
       sample = instrument.samples[note]
       voice = sample.voice
       self.mixer.play(self.voices[voice], voice = voice, loop = sample.mode == Sample.MODE_LOOP)
     elif isinstance(instrument, Synth):
-      self.voices[instrument.voice].press(note)
+      noteObj = synthio.Note(frequency = synthio.midi_to_hz(note))
+      self.voices[instrument.voice].press(noteObj)
+      self.notes[instrument.id][note] = noteObj
 
-  def noteOff(self, instrumentId, note):
-    instrument = self.model.instruments[instrumentId]
+  def noteOffInstrument(self, instrument, note):
     if isinstance(instrument, Kit):
       sample = instrument.samples[note]
       if sample.mode != Sample.MODE_ONESHOT:
         self.mixer.stop_voice(sample.voice)
     elif isinstance(instrument, Synth):
-      self.voices[instrument.voice].release(note)
+      noteObj = self.notes[instrument.id].get(note)
+      if noteObj:
+        self.voices[instrument.voice].release(noteObj)
+      self.notes[instrument.id][note] = None
+
+  def noteOnCurrent(self, note):
+    self.noteOnInstrument(self.currentInstrument, note)
+
+  def noteOffCurrent(self, note):
+    self.noteOffInstrument(self.currentInstrument, note)
+
+  def noteSafeCurrent(self, note):
+    if isinstance(self.currentInstrument, Kit) and note >= len(self.currentInstrument):
+      return False
+    return True
+
+  def noteOn(self, instrumentId, note):
+    self.noteOnInstrument(self.model.instruments[instrumentId], note)
+
+  def noteOff(self, instrumentId, note):
+    self.noteOffInstrument(self.model.instruments[instrumentId], note)
 
   # update
   def tick(self):
     if self.playing:
-      self.ui.beforeStep(self)
+      self.ui.beforeStep()
     self.step = (self.step + 1) % 16
     if self.playing:
-      self.ui.step(self)
+      self.ui.step()
 
   def input(self, pressed, downs, ups):
-    pass
+    self.ui.input(pressed, downs, ups)
