@@ -17,100 +17,6 @@ def pos2note(y, x):
 def note2pos(note):
   return (note // 4, note % 4)
 
-class PatternPage:
-  def __init__(self, painter, state, pageButton):
-    self.painter = painter
-    self.state = state
-    self.pageButton = pageButton
-    self.pageButtonHeld = False
-
-  def draw(self):
-    painter = self.painter
-    state = self.state
-    if self.pageButtonHeld:
-      patterns = state.model.patterns
-      for y in range(4):
-        for x in range(4):
-          i = (3 - y) * 4 + x
-          pattern = patterns[i]
-          if pattern:
-            color = BLUEH
-            if state.currentPattern == pattern:
-              color = GREENH
-            elif pattern.empty:
-              color = OFF
-            painter.set(y, x, color)
-          else:
-            painter.set(y, x, OFF)
-    else:
-      pattern = state.currentPattern
-      if pattern:
-        for y in range(4):
-          for x in range(4):
-            i = (3 - y) * 4 + x
-            step = pattern[i]
-            isStep = state.playing and state.step == i
-            if step:
-              painter.set(y, x, CYAN if isStep else BLUEH)
-            else:
-              painter.set(y, x, WHITE if isStep else OFF)
-      else:
-        for y in range(4):
-          for x in range(4):
-            i = (3 - y) * 4 + x
-            isStep = state.playing and state.step == i
-            painter.set(y, x, WHITE if isStep else OFF)
-      for y in range(3):
-        for x in range(4):
-          painter.set(y, x + 4, OFF)
-
-  def input(self, pressed, downs, ups):
-    state = self.state
-    for down in downs:
-      y = down[0]
-      x = down[1]
-      if x < 4:
-        i = (3 - y) * 4 + x
-        if self.pageButtonHeld:
-          pattern = state.model.patterns[i]
-          if not pattern:
-            pattern = Pattern(i)
-            state.model.patterns[i] = pattern
-          state.currentPattern = pattern
-        else:
-          pattern = state.currentPattern
-          if pattern:
-            step = pattern[i]
-            if step:
-              pattern[i] = None
-            elif state.selectedInstrument and state.selectedNote != None:
-              pattern[i] = Step(state.selectedInstrument, state.selectedNote)
-
-  def pageButtonPressed(self):
-    self.pageButtonHeld = True
-
-  def pageButtonReleased(self):
-    self.pageButtonHeld = False
-
-  def step(self):
-    state = self.state
-    pattern = state.currentPattern
-    if pattern:
-      step = pattern[state.step]
-      if step:
-        state.noteOnInstrument(step.instrument, step.note)
-
-  def beforeStep(self):
-    state = self.state
-    pattern = state.currentPattern
-    if pattern:
-      step = pattern[state.step]
-      if step:
-        state.noteOffInstrument(step.instrument, step.note)
-
-  def stopPlaying(self):
-    self.beforeStep()
-
 class InstrumentPage:
   PARAM1_BUTTON = (2, 4)
   DEC_PLUS_BUTTON = (0, 4)
@@ -275,9 +181,187 @@ class InstrumentPage:
   def pageButtonReleased(self):
     self.pageButtonHeld = False
 
+class PatternPage:
+  def __init__(self, painter, state, pageButton):
+    self.painter = painter
+    self.state = state
+    self.pageButton = pageButton
+    self.pageButtonHeld = False
+
+  def draw(self):
+    painter = self.painter
+    state = self.state
+    if self.pageButtonHeld:
+      patterns = state.model.patterns
+      for y in range(4):
+        for x in range(4):
+          i = (3 - y) * 4 + x
+          pattern = patterns[i]
+          if pattern:
+            color = BLUEH
+            if state.currentPattern == pattern:
+              color = GREENH
+            painter.set(y, x, color)
+          else:
+            painter.set(y, x, OFF)
+    else:
+      pattern = state.currentPattern
+      if pattern:
+        for y in range(4):
+          for x in range(4):
+            i = (3 - y) * 4 + x
+            step = pattern[i]
+            isStep = state.playing and state.step == i
+            if step:
+              painter.set(y, x, CYAN if isStep else BLUEH)
+            else:
+              painter.set(y, x, WHITE if isStep else OFF)
+      else:
+        for y in range(4):
+          for x in range(4):
+            i = (3 - y) * 4 + x
+            isStep = state.playing and state.step == i
+            painter.set(y, x, WHITE if isStep else OFF)
+      for y in range(3):
+        for x in range(4):
+          painter.set(y, x + 4, OFF)
+
+  def input(self, pressed, downs, ups):
+    state = self.state
+    for down in downs:
+      y = down[0]
+      x = down[1]
+      if x < 4:
+        i = (3 - y) * 4 + x
+        if self.pageButtonHeld:
+          pattern = state.model.patterns[i]
+          if not pattern:
+            pattern = Pattern(i)
+            state.model.patterns[i] = pattern
+          state.currentPattern = pattern
+        else:
+          pattern = state.currentPattern
+          if pattern:
+            step = pattern[i]
+            if step:
+              pattern[i] = None
+            elif state.selectedInstrument and state.selectedNote != None:
+              pattern[i] = Step(state.selectedInstrument, state.selectedNote)
+
+  def pageButtonPressed(self):
+    self.pageButtonHeld = True
+
+  def pageButtonReleased(self):
+    self.pageButtonHeld = False
+
+  def step(self):
+    state = self.state
+    pattern = state.currentPattern
+    if pattern:
+      step = pattern[state.step]
+      if step:
+        state.noteOnInstrument(step.instrument, step.note)
+
+  def beforeStep(self):
+    state = self.state
+    pattern = state.currentPattern
+    if pattern:
+      step = pattern[state.step]
+      if step:
+        state.noteOffInstrument(step.instrument, step.note)
+
+  def stopPlaying(self):
+    self.beforeStep()
+
+class LivePage:
+  BPM_BUTTON = (2, 4)
+  DEC_PLUS_BUTTON = (0, 4)
+  DEC_BUTTON = (0, 5)
+  INC_BUTTON = (0, 6)
+  INC_PLUS_BUTTON = (0, 7)
+
+  def __init__(self, painter, state, pageButton):
+    self.painter = painter
+    self.state = state
+    self.pageButton = pageButton
+    self.pageButtonHeld = False
+    self.patterns = [False] * 16
+
+  def pageButtonPressed(self):
+    self.pageButtonHeld = True
+
+  def pageButtonReleased(self):
+    self.pageButtonHeld = False
+
+  def draw(self):
+    painter = self.painter
+    state = self.state
+    for y in range(4):
+      for x in range(4):
+        i = (3 - y) * 4 + x
+        if self.patterns[i]:
+          painter.set(y, x, GREEN)
+        elif state.model.patterns[i]:
+          painter.set(y, x, BLUEH)
+        else:
+          painter.set(y, x, OFF)
+    for y in range(3):
+      for x in range(4):
+        painter.set(y, x + 4, OFF)
+    painter.setTuple(LivePage.BPM_BUTTON, GREENH)
+    curBpm = state.model.bpm
+    painter.setTuple(LivePage.DEC_PLUS_BUTTON, BLUEH if curBpm >= 20 else OFF)
+    painter.setTuple(LivePage.DEC_BUTTON, BLUEH if curBpm > 10 else OFF)
+    painter.setTuple(LivePage.INC_BUTTON, BLUEH if curBpm < 300 else OFF)
+    painter.setTuple(LivePage.INC_PLUS_BUTTON, BLUEH if curBpm <= 290 else OFF)
+
+  def input(self, pressed, downs, ups):
+    state = self.state
+    model = state.model
+    for down in downs:
+      y = down[0]
+      x = down[1]
+      curBpm = model.bpm
+      if (y, x) == LivePage.DEC_PLUS_BUTTON:
+        if curBpm >= 20:
+          model.bpm = curBpm - 10
+      elif (y, x) == LivePage.DEC_BUTTON:
+        if curBpm > 10:
+          model.bpm = curBpm - 1
+      elif (y, x) == LivePage.INC_BUTTON:
+        if curBpm < 300:
+          model.bpm = curBpm + 1
+      elif (y, x) == LivePage.INC_PLUS_BUTTON:
+        if curBpm <= 290:
+          model.bpm = curBpm + 10
+      elif x < 4:
+        i = (3 - y) * 4 + x
+        if state.model.patterns[i]:
+          self.patterns[i] = not self.patterns[i]
+
+  def step(self):
+    state = self.state
+    for i in range(16):
+      if self.patterns[i]:
+        step = state.model.patterns[i][state.step]
+        if step:
+          state.noteOnInstrument(step.instrument, step.note)
+
+  def beforeStep(self):
+    state = self.state
+    for i in range(16):
+      if self.patterns[i]:
+        step = state.model.patterns[i][state.step]
+        if step:
+          state.noteOffInstrument(step.instrument, step.note)
+
+  def stopPlaying(self):
+    self.beforeStep()
+
 class UI:
   INSTRUMENT_PAGE_BUTTON = (3, 4)
   PATTERN_PAGE_BUTTON = (3, 5)
+  LIVE_PAGE_BUTTON = (3, 6)
   PLAY_BUTTON = (3, 7)
 
   def __init__(self):
@@ -288,15 +372,18 @@ class UI:
     self.state = state
     self.instrumentPage = InstrumentPage(painter, state, UI.INSTRUMENT_PAGE_BUTTON)
     self.patternPage = PatternPage(painter, state, UI.PATTERN_PAGE_BUTTON)
+    self.livePage = LivePage(painter, state, UI.LIVE_PAGE_BUTTON)
     self.currentPage = self.instrumentPage
     self.instrumentPageButtonHeld = False
     self.patternPageButtonHeld = False
+    self.livePageButtonHeld = False
+    self.playingPage = None
 
   def beforeStep(self):
-    self.patternPage.beforeStep()
+    self.playingPage.beforeStep()
 
   def step(self):
-    self.patternPage.step()
+    self.playingPage.step()
 
   def draw(self):
     painter = self.painter
@@ -305,17 +392,28 @@ class UI:
     if self.currentPage == self.instrumentPage:
       painter.setTuple(UI.INSTRUMENT_PAGE_BUTTON, GREEN if self.instrumentPageButtonHeld else GREENH)
       painter.setTuple(UI.PATTERN_PAGE_BUTTON, BLUEH)
+      painter.setTuple(UI.LIVE_PAGE_BUTTON, BLUEH)
     elif self.currentPage == self.patternPage:
       painter.setTuple(UI.INSTRUMENT_PAGE_BUTTON, BLUEH)
       painter.setTuple(UI.PATTERN_PAGE_BUTTON, GREEN if self.patternPageButtonHeld else GREENH)
+      painter.setTuple(UI.LIVE_PAGE_BUTTON, BLUEH)
+    elif self.currentPage == self.livePage:
+      painter.setTuple(UI.INSTRUMENT_PAGE_BUTTON, BLUEH)
+      painter.setTuple(UI.PATTERN_PAGE_BUTTON, BLUEH)
+      painter.setTuple(UI.LIVE_PAGE_BUTTON, GREEN if self.livePageButtonHeld else GREENH)
 
   def input(self, pressed, downs, ups):
     if UI.PLAY_BUTTON in downs:
       newPlaying = not self.state.playing
       self.state.startPlaying = newPlaying
-      if not newPlaying:
+      if newPlaying:
+        if self.currentPage == self.patternPage:
+          self.playingPage = self.patternPage
+        elif self.currentPage == self.livePage:
+          self.playingPage = self.livePage
+      else:
         self.state.stopPlaying()
-        self.patternPage.stopPlaying()
+        self.playingPage.stopPlaying()
     elif UI.INSTRUMENT_PAGE_BUTTON in downs:
       self.instrumentPageButtonHeld = True
       self.currentPage = self.instrumentPage
@@ -329,5 +427,12 @@ class UI:
       self.currentPage.pageButtonPressed()
     elif UI.PATTERN_PAGE_BUTTON in ups:
       self.patternPageButtonHeld = False
+      self.currentPage.pageButtonReleased()
+    elif UI.LIVE_PAGE_BUTTON in downs:
+      self.livePageButtonHeld = True
+      self.currentPage = self.livePage
+      self.currentPage.pageButtonPressed()
+    elif UI.LIVE_PAGE_BUTTON in ups:
+      self.livePageButtonHeld = False
       self.currentPage.pageButtonReleased()
     self.currentPage.input(pressed, downs, ups)

@@ -7,15 +7,6 @@ class Pattern:
   def __init__(self, id):
     self.id = id
     self.steps = [None] * 16
-    self.empty = True
-
-  def setEmpty(self):
-    allNone = True
-    for i in range(16):
-      if self.steps[i] != None:
-        allNone = False
-        break
-    self.empty = allNone
 
   def __len__(self):
     return len(self.steps)
@@ -25,7 +16,6 @@ class Pattern:
 
   def __setitem__(self, i, step):
     self.steps[i] = step
-    self.setEmpty()
 
 class Synth:
   def __init__(self, id, voice):
