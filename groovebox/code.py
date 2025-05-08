@@ -7,6 +7,7 @@ import adafruit_wave
 import os
 from state import State
 from ui import UI
+from painter import Painter
 
 BRIGHTNESS = 0.05
 KITS_PATH = "/samples"
@@ -47,7 +48,9 @@ for waveformPath in waveformsPaths:
 state.initializeSynths(synths)
 print("initialization done, time: %f" % (time.monotonic() - timestamp))
 
-ui.init(trellis.pixels, state)
+painter = Painter(trellis.pixels)
+
+ui.init(painter, state)
 ui.draw()
 
 # main loop
@@ -63,3 +66,5 @@ while True:
     ups = pressed - newpressed
     state.input(newpressed, downs, ups)
     pressed = newpressed
+    ui.draw()
+    painter.draw()

@@ -9,8 +9,6 @@ class State:
     self.ui = ui
 
     self.voices = []
-    self.model = self.initializeModel(kitsPath)
-    self.mixer = self.initializeMixer()
 
     self.step = 15
     self.playing = False
@@ -21,6 +19,9 @@ class State:
     self.notes = {}
 
     self.currentPattern = None
+ 
+    self.model = self.initializeModel(kitsPath)
+    self.mixer = self.initializeMixer()
 
   # initialization
   def initializeModel(self, path):
@@ -48,7 +49,9 @@ class State:
     samplePaths.sort()
     samples = []
     note = 0
+    self.notes[id] = {}
     for samplePath in samplePaths[:16]:
+      self.notes[id][note] = False
       sample = self.initializeSample(samplePath, id, note)
       note = note + 1
       samples.append(sample)
@@ -87,11 +90,15 @@ class State:
     return modelSynth
 
   # actions
+  def isNoteOn(self, instrument, note):
+    return self.notes[instrument.id].get(note, None)
+
   def noteOnInstrument(self, instrument, note):
     if isinstance(instrument, Kit):
       sample = instrument.samples[note]
       voice = sample.voice
       self.mixer.play(self.voices[voice], voice = voice, loop = sample.mode == Sample.MODE_LOOP)
+      self.notes[instrument.id][note] = True
     elif isinstance(instrument, Synth):
       noteObj = synthio.Note(frequency = synthio.midi_to_hz(note))
       self.voices[instrument.voice].press(noteObj)
@@ -102,6 +109,7 @@ class State:
       sample = instrument.samples[note]
       if sample.mode != Sample.MODE_ONESHOT:
         self.mixer.stop_voice(sample.voice)
+      self.notes[instrument.id][note] = False
     elif isinstance(instrument, Synth):
       noteObj = self.notes[instrument.id].get(note)
       if noteObj:
