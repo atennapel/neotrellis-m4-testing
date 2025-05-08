@@ -11,6 +11,7 @@ class State:
     self.voices = []
 
     self.step = 15
+    self.startPlaying = False
     self.playing = False
 
     self.currentInstrument = None
@@ -135,11 +136,20 @@ class State:
 
   # update
   def tick(self):
-    if self.playing:
+    if self.startPlaying:
+      self.step = 15
+    if self.startPlaying or self.playing:
       self.ui.beforeStep()
     self.step = (self.step + 1) % 16
+    if self.startPlaying and self.step == 0:
+      self.startPlaying = False
+      self.playing = True
     if self.playing:
       self.ui.step()
+
+  def stopPlaying(self):
+    self.startPlaying = False
+    self.playing = False
 
   def input(self, pressed, downs, ups):
     self.ui.input(pressed, downs, ups)

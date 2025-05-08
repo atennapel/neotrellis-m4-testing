@@ -44,6 +44,9 @@ class Sample:
     self.voice = voice
     self.mode = Sample.MODE_HOLD
 
+  def nextMode(self):
+    self.mode = (self.mode + 1) % 3
+
 class Kit:
   def __init__(self, path, id, samples):
     self.path = path
@@ -52,6 +55,9 @@ class Kit:
 
   def __len__(self):
     return len(self.samples)
+  
+  def __getitem__(self, i):
+    return self.samples[i]
 
 class Model:
   def __init__(self):

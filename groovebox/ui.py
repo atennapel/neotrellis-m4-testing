@@ -1,4 +1,4 @@
-from model import Kit, Synth, Step, Pattern
+from model import Kit, Sample, Synth, Step, Pattern
 from painter import *
 
 naturals = [True, False, True, False, True, True, False, True, False, True, False, True]
@@ -51,7 +51,7 @@ class PatternPage:
             step = pattern[i]
             isStep = state.playing and state.step == i
             if step:
-              painter.set(y, x, BLUE if isStep else BLUEH)
+              painter.set(y, x, CYAN if isStep else BLUEH)
             else:
               painter.set(y, x, WHITE if isStep else OFF)
       else:
@@ -112,7 +112,7 @@ class PatternPage:
     self.beforeStep()
 
 class InstrumentPage:
-  OCTAVE_BUTTON = (2, 4)
+  PARAM1_BUTTON = (2, 4)
   DEC_PLUS_BUTTON = (0, 4)
   DEC_BUTTON = (0, 5)
   INC_BUTTON = (0, 6)
@@ -190,20 +190,31 @@ class InstrumentPage:
       instrument = state.currentInstrument
       self.drawKeyboard()
       if isinstance(instrument, Kit):
-        painter.setTuple(InstrumentPage.OCTAVE_BUTTON, OFF)
         painter.setTuple(InstrumentPage.DEC_PLUS_BUTTON, OFF)
         painter.setTuple(InstrumentPage.DEC_BUTTON, OFF)
         painter.setTuple(InstrumentPage.INC_BUTTON, OFF)
         painter.setTuple(InstrumentPage.INC_PLUS_BUTTON, OFF)
+        if state.selectedInstrument == instrument:
+          mode = instrument[state.selectedNote].mode
+          if mode == Sample.MODE_HOLD:
+            painter.setTuple(InstrumentPage.PARAM1_BUTTON, PINKH)
+          elif mode == Sample.MODE_ONESHOT:
+            painter.setTuple(InstrumentPage.PARAM1_BUTTON, CYANH)
+          elif mode == Sample.MODE_LOOP:
+            painter.setTuple(InstrumentPage.PARAM1_BUTTON, YELLOWH)
+          else:
+            painter.setTuple(InstrumentPage.PARAM1_BUTTON, OFF)
+        else:
+          painter.setTuple(InstrumentPage.PARAM1_BUTTON, OFF)
       elif isinstance(instrument, Synth):
-        painter.setTuple(InstrumentPage.OCTAVE_BUTTON, GREENH)
+        painter.setTuple(InstrumentPage.PARAM1_BUTTON, GREENH)
         cur = self.getNoteMod(instrument)
         painter.setTuple(InstrumentPage.DEC_PLUS_BUTTON, BLUEH if cur >= 12 else OFF)
         painter.setTuple(InstrumentPage.DEC_BUTTON, BLUEH if cur > 0 else OFF)
         painter.setTuple(InstrumentPage.INC_BUTTON, BLUEH if cur < 127 else OFF)
         painter.setTuple(InstrumentPage.INC_PLUS_BUTTON, BLUEH if cur <= 115 else OFF)
       else:
-        painter.setTuple(InstrumentPage.OCTAVE_BUTTON, OFF)
+        painter.setTuple(InstrumentPage.PARAM1_BUTTON, OFF)
         painter.setTuple(InstrumentPage.DEC_PLUS_BUTTON, OFF)
         painter.setTuple(InstrumentPage.DEC_BUTTON, OFF)
         painter.setTuple(InstrumentPage.INC_BUTTON, OFF)
@@ -231,6 +242,10 @@ class InstrumentPage:
           if cur <= 115:
             mod = mod + 12
         self.noteMods[instrument.id] = cur + mod
+      elif isinstance(instrument, Kit):
+        if state.selectedInstrument == instrument:
+          if (y, x) == InstrumentPage.PARAM1_BUTTON:
+            instrument[state.selectedNote].nextMode()
       if x < 4:
         if self.pageButtonHeld:
           i = (3 - y) * 4 + x
@@ -297,10 +312,10 @@ class UI:
   def input(self, pressed, downs, ups):
     if UI.PLAY_BUTTON in downs:
       newPlaying = not self.state.playing
-      self.state.playing = newPlaying
+      self.state.startPlaying = newPlaying
       if not newPlaying:
+        self.state.stopPlaying()
         self.patternPage.stopPlaying()
-      self.state.step = 15
     elif UI.INSTRUMENT_PAGE_BUTTON in downs:
       self.instrumentPageButtonHeld = True
       self.currentPage = self.instrumentPage
