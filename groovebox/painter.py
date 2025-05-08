@@ -25,27 +25,33 @@ PAINTER_COLORS = [
   (255, 255, 255), (255 // 2, 255 // 2, 255 // 2),
 ]
 
+PAINTER_POSITIONS = []
+for y in range(4):
+  for x in range(8):
+    PAINTER_POSITIONS.append((y, x))
+
 class Painter:
   def __init__(self, pixels):
     self.pixels = pixels
-    self.buffer = [[0] * 32, [0] * 32]
-    self.pointer = 0
+    self.front = [0] * 32
+    self.back = [0] * 32
+    pixels.fill(0)
+    pixels.auto_write = False
 
   def set(self, y, x, color):
     i = y * 8 + x
-    self.buffer[self.pointer][i] = color
+    self.back[i] = color
 
   def setIndex(self, i, color):
-    self.buffer[self.pointer][i] = color
+    self.back[i] = color
 
   def draw(self):
     pixels = self.pixels
-    pointer = self.pointer
-    back = self.buffer[pointer]
-    front = self.buffer[1 - pointer]
-    self.pointer = 1 - pointer
+    front = self.front
+    back = self.back
     for i in range(32):
       b = back[i]
       if front[i] != b:
-        pixels[(i // 8, i % 8)] = PAINTER_COLORS[b]
+        pixels[PAINTER_POSITIONS[i]] = PAINTER_COLORS[b]
         front[i] = b
+    pixels.show()
