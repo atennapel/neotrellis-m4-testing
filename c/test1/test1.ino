@@ -1,10 +1,13 @@
 #include <math.h>
 
+#include <SPI.h>
+#include <SdFat_Adafruit_Fork.h>
+#include <Adafruit_InternalFlash.h>
+#include <Adafruit_TinyUSB.h>
 #include <Adafruit_NeoTrellisM4.h>
 #include <Audio.h>
 #include <Wire.h>
-#include <SPI.h>
-#include <SD.h>
+
 
 Adafruit_NeoTrellisM4 trellis = Adafruit_NeoTrellisM4();
 
