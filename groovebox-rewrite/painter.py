@@ -50,7 +50,7 @@ class Painter:
   def setIndex(self, i, color):
     self.back[i] = color
 
-  def draw(self):
+  def show(self):
     pixels = self.pixels
     front = self.front
     back = self.back
