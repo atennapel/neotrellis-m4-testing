@@ -11,3 +11,6 @@ class Input:
     self.held = next
     self.pressed = next - prev
     self.released = prev - next
+
+  def isHeld(self, button):
+    return button in self.held
