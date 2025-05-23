@@ -1,67 +1,84 @@
 from sequencer import Sequencer
 from painter import *
+from model import Kit, Synth
 
 class Logic:
-  def __init__(self, input, painter, player):
+  def __init__(self, input, painter, model, instruments):
+    self.model = model
     self.input = input
     self.painter = painter
-    self.state = [False] * 32
+    self.instruments = instruments
     self.sequencer = Sequencer(64, 120, self)
-    self.player = player
-    self.value = 8
-    self.barShowing = False
-    self.pattern = [False] * 64
-    self.page = 0
+    self.state = [False] * 32
+    self.instrument = None
 
   def update(self, delta):
     self.sequencer.update(delta)
 
+    model = self.model
     input = self.input
     for button in input.pressed:
       x, y = button
       self.state[x + y * 8] = True
-      if x == 7 and y == 3:
-        if self.sequencer.playing:
-          self.sequencer.stop()
-        else:
-          self.sequencer.start()
-      elif x == 0 and y == 3:
-        self.barShowing = True
-      elif y == 2 and x < 4:
-        self.page = x
-      elif y == 0 and self.barShowing:
-        self.value = 0 if x == 0 and self.value == 1 else x + 1
-        self.player.setVolume(self.value / 8)
-      elif y == 0 or y == 1:
-        i = y * 8 + x + self.page * 16
-        self.pattern[i] = not self.pattern[i]
+      if x < 4:
+        instrument_id = y * 4 + x
+        new_instrument = model.instruments[instrument_id]
+        if new_instrument:
+          self.instrument = new_instrument
+      elif isinstance(self.instrument, Synth):
+        note = (3 - y) * 4 + (x - 4) + 60
+        self.instruments.noteOn(self.instrument.id, note)
+      elif isinstance(self.instrument, Kit):
+        note = (3 - y) * 4 + (x - 4)
+        if note < len(self.instrument):
+          self.instruments.noteOn(self.instrument.id, note)
 
     for button in input.released:
       x, y = button
       self.state[x + y * 8] = False
-      if x == 0 and y == 3:
-        self.barShowing = False
+      if x >= 4:
+        if isinstance(self.instrument, Synth):
+          note = (3 - y) * 4 + (x - 4) + 60
+          self.instruments.noteOff(self.instrument.id, note)
+        if isinstance(self.instrument, Kit):
+          note = (3 - y) * 4 + (x - 4)
+          if note < len(self.instrument):
+            self.instruments.noteOff(self.instrument.id, note)
 
   def draw(self):
+    model = self.model
     painter = self.painter
-    for i, pressed in enumerate(self.state):
-      if self.barShowing and i < 8:
-        painter.setIndex(i, BLUE if i < self.value else OFF)
-      elif self.sequencer.playing and i < 16 and i + self.page * 16 == self.sequencer.step:
-        painter.setIndex(i, BLUE)
-      elif i < 16 and self.pattern[i + self.page * 16]:
-        painter.setIndex(i, GREEN)
-      elif i == 16 and self.page == 0:
-        painter.setIndex(i, PURPLE)
-      elif i == 17 and self.page == 1:
-        painter.setIndex(i, PURPLE)
-      elif i == 18 and self.page == 2:
-        painter.setIndex(i, PURPLE)
-      elif i == 19 and self.page == 3:
-        painter.setIndex(i, PURPLE)
-      else:
-        painter.setIndex(i, RED if pressed else OFF)
+    for y in range(4):
+      for x in range(8):
+        if x < 4:
+          instrument_id = y * 4 + x
+          instrument = model.instruments[instrument_id]
+          if instrument == None:
+            painter.set(x, y, OFF)
+          elif instrument == self.instrument:
+            painter.set(x, y, RED)
+          elif isinstance(instrument, Kit):
+            painter.set(x, y, BLUEH)
+          elif isinstance(instrument, Synth):
+            painter.set(x, y, GREENH)
+        else:
+          instrument = self.instrument
+          if instrument == None:
+            painter.set(x, y, OFF)
+          elif isinstance(instrument, Synth):
+            if self.state[x + y * 8]:
+              painter.set(x, y, RED)
+            else:
+              note = (3 - y) * 4 + (x - 4) + 60
+              mask = [True, False, True, False, True, True, False, True, False, True, False, True]
+              is_natural = mask[note % 12]
+              painter.set(x, y, GREENH if is_natural else BLUEH)
+          elif isinstance(instrument, Kit):
+            i = (3 - y) * 4 + (x - 4)
+            if i < len(instrument):
+              painter.set(x, y, RED if self.state[x + y * 8] else GREENH)
+            else:
+              painter.set(x, y, OFF)
 
   def trigger(self, step):
-    if self.pattern[step]:
-      self.player.play(0)
+    pass
