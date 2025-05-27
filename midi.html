@@ -1,0 +1,54 @@
+<input id="pos"></input>
+<input id="color"></input>
+<button id="setcolor">Set</button>
+<script>
+navigator.requestMIDIAccess()
+  .then(onMIDISuccess, onMIDIFailure);
+
+let trellis = null;
+
+function onMIDISuccess(midiAccess) {
+  for (var input of midiAccess.inputs.values()) {
+    if (input.name == "CircuitPython Audio")
+      input.onmidimessage = onMIDIMessage;
+  }
+
+  for (var output of midiAccess.outputs.values()) {
+    if (output.name == "CircuitPython Audio")
+      trellis = output;
+  }
+
+  document.getElementById("setcolor").addEventListener("click", setColorEvent);
+}
+
+function onMIDIMessage(msg) {
+  const type = msg.data[0]
+  if (type == 144) { // NOTE_ON
+    const note = msg.data[1]
+    console.log("on", msg.data);
+  } else if (type == 128) { // NOTE_OFF
+    const note = msg.data[1]
+    console.log("off", msg.data);
+  }
+}
+
+function onMIDIFailure(err) {
+  console.log("MIDI failure: " + err)
+}
+
+function setColor(pos, color) {
+  if (trellis)
+    trellis.send([144, pos, color]);
+}
+
+function clearColor(pos) {
+  if (trellis)
+    trellis.send([128, pos, 0]);
+}
+
+function setColorEvent() {
+  const pos = +document.getElementById("pos").value;
+  const color = +document.getElementById("color").value;
+  setColor(pos, color);
+}
+</script>

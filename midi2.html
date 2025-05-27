@@ -1,0 +1,104 @@
+<div id="info"></div>
+<br/>
+<button id="b0">0</button>
+<button id="b1">1</button>
+<button id="b2">2</button>
+<br/>
+<button id="b3">3</button>
+<button id="b4">4</button>
+<button id="b5">5</button>
+<br/>
+<button id="b6">6</button>
+<button id="b7">7</button>
+<button id="b8">8</button>
+<br/>
+<button id="b9">9</button>
+<button id="b10">10</button>
+<button id="b11">11</button>
+
+<script>
+let macropad = null;
+
+function info(msg) {
+  document.getElementById("info").textContent = msg;
+}
+
+info("Initializing...")
+navigator.requestMIDIAccess()
+  .then(onMIDISuccess, onMIDIFailure);
+
+function onMIDISuccess(midiAccess) {
+  let found = false;
+  for (var input of midiAccess.inputs.values()) {
+    if (input.name == "CircuitPython Audio") {
+      input.onmidimessage = onMIDIMessage;
+      info("Initialized input");
+      found = true;
+      break;
+    }
+  }
+  if (!found) {
+    info("No input found");
+    return;
+  }
+
+  found = false;
+  for (var output of midiAccess.outputs.values()) {
+    if (output.name == "CircuitPython Audio") {
+      macropad = output;
+      info("Initialized output");
+      found = true;
+      break;
+    }
+  }
+  if (!found) {
+    info("No output found");
+    return;
+  }
+
+  for (let i = 0; i < 12; i++)
+    document.getElementById("b" + i).addEventListener("click", () => buttonClicked(i));
+
+  info("Initialized");
+}
+
+function onMIDIMessage(msg) {
+  info("Received " + msg.data);
+  /*
+  const type = msg.data[0]
+  if (type == 144) { // NOTE_ON
+    const note = msg.data[1]
+    console.log("on", msg.data);
+  } else if (type == 128) { // NOTE_OFF
+    const note = msg.data[1]
+    console.log("off", msg.data);
+  }
+  */
+}
+
+function onMIDIFailure(err) {
+  info("MIDI failure: " + err);
+}
+
+function setColor(pos, color) {
+  macropad.send([144, pos, color]);
+}
+
+function clearColor(pos) {
+  macropad.send([128, pos, 0]);
+}
+
+const state = [];
+for (let i = 0; i < 12; i++) {
+  state[i] = false;
+}
+
+function buttonClicked(i) {
+  const value = !state[i]
+  state[i] = value;
+  if (value)
+    setColor(i, 1);
+  else
+    clearColor(i)
+}
+</script>
