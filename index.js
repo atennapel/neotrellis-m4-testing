@@ -53,20 +53,24 @@ async function start() {
   info("requesting midi input");
   const access = await navigator.requestMIDIAccess();
   info("got midi access");
+  const inputs = [];
+  const outputs = [];
   for (const input of access.inputs.values()) {
-    if (input.name == "CircuitPython Audio") {
+    inputs.push(input.name);
+    if (input.name == "CircuitPython Audio" || input.name == "Adafruit Macropad RP2040" || input.name == "Macropad RP2040") {
       macropad = input;
       macropad.addEventListener("midimessage", onMidi);
     }
   }
   for (const output of access.outputs.values()) {
-    if (output.name == "CircuitPython Audio") {
+    outputs.push(output.name);
+    if (output.name == "CircuitPython Audio" || output.name == "Adafruit Macropad RP2040" || output.name == "Macropad RP2040") {
       macropadOutput = output;
-      console.log(macropadOutput);
     }
   }
+  console.log(`midi inputs: [${inputs.join(", ")}], midi outputs: [${outputs.join(", ")}]`);
   if (!macropad || !macropadOutput)
-    info("macropad not found");
+    info(`macropad not found, midi inputs: [${inputs.join(", ")}], midi outputs: [${outputs.join(", ")}]`);
   else
     info("macropad found");
 
