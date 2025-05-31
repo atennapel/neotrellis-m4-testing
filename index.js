@@ -11,11 +11,25 @@ let delay = null;
 let transport = null;
 let sampler = null;
 
-let encoderValue = [0, 0, 0, 120];
+let encoderValue = [0, 0, 0, 120, 0];
 let encoderMode = 0;
 function updateStatus() {
   info(`mode: ${encoderMode}, enc: ${encoderValue[encoderMode]}`);
 }
+
+function showNote(note) {
+  return note < 0 ? `--` : note < 10 ? `0${note}` : `${note}`;
+}
+
+const pattern = [];
+let currentStep = 0;
+let step = 0;
+for (let i = 0; i < 16; i++) pattern.push(-1);
+const patternDiv = document.getElementById("pattern");
+function updatePattern() {
+  patternDiv.innerText = pattern.map((n, i) => `${i == currentStep ? ">" : " "}${showNote(n)}${i == step ? "<" : " "}`).join(`|`);
+}
+updatePattern();
 
 function createDrumsSampler(sample) {
   return new Tone.Sampler({
@@ -102,6 +116,10 @@ function onMidi(msg) {
       const freq = Tone.Frequency(note, "midi");
       sampler.triggerAttack(freq);
       macropadOutput.send([NOTE_ON, data[1], 1]);
+      if (encoderMode == 4) {
+        pattern[currentStep] = note;
+        updatePattern();
+      }
     } else if (value == 12) {
       const v = encoderValue[encoderMode] + (data[2] - 100);
       encoderValue[encoderMode] = v;
@@ -114,8 +132,14 @@ function onMidi(msg) {
         synth.set({ envelope: { attack: clamp(0, 100, v) / 50 } });
       else if (encoderMode == 3)
         transport.bpm.value = clamp(1, 500, v);
+      else if (encoderMode == 4) {
+        let x = v;
+        while (x < 0) x += 16;
+        currentStep = x % 16;
+        updatePattern();
+      }
     } else if (value == 13) {
-      encoderMode = (encoderMode + 1) % 4;
+      encoderMode = (encoderMode + 1) % 5;
       updateStatus();
     }
   } else if (data[0] == NOTE_OFF) {
@@ -130,9 +154,12 @@ function onMidi(msg) {
   }
 }
 
-let step = 0;
 function tick(t) {
   step = (step + 1) % 16;
-  // if (step % 4 == 0)
-    // sampler.triggerAttackRelease("C4", "16n", t);
+  updatePattern();
+  const note = pattern[step]
+  if (note >= 0) {
+    const freq = Tone.Frequency(note, "midi");
+    sampler.triggerAttackRelease(freq, "16n", t);
+  }
 }
