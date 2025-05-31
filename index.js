@@ -13,6 +13,7 @@ let sampler = null;
 
 let encoderValue = [0, 0, 0, 120, 0];
 let encoderMode = 0;
+let encoderLayer = 0;
 function updateStatus() {
   info(`mode: ${encoderMode}, enc: ${encoderValue[encoderMode]}`);
 }
@@ -30,6 +31,18 @@ function updatePattern() {
   patternDiv.innerText = pattern.map((n, i) => `${i == currentStep ? ">" : " "}${showNote(n)}${i == step ? "<" : " "}`).join(`|`);
 }
 updatePattern();
+
+const screenDiv = document.getElementById("screen");
+function updateScreen() {
+  const txt =
+`${encoderMode == 0 && encoderLayer == 0 ? ">" : " "} volume ${encoderMode == 0 && encoderLayer == 1 ? ">" : " "} ${encoderValue[0]}
+${encoderMode == 1 && encoderLayer == 0 ? ">" : " "} wet    ${encoderMode == 1 && encoderLayer == 1 ? ">" : " "} ${encoderValue[1]}
+${encoderMode == 2 && encoderLayer == 0 ? ">" : " "} attack ${encoderMode == 2 && encoderLayer == 1 ? ">" : " "} ${encoderValue[2]}
+${encoderMode == 3 && encoderLayer == 0 ? ">" : " "} bpm    ${encoderMode == 3 && encoderLayer == 1 ? ">" : " "} ${encoderValue[3]}
+${encoderMode == 4 && encoderLayer == 0 ? ">" : " "} step   ${encoderMode == 4 && encoderLayer == 1 ? ">" : " "} ${encoderValue[4]}`;
+  screenDiv.innerText = txt;
+}
+updateScreen();
 
 function createDrumsSampler(sample) {
   return new Tone.Sampler({
@@ -89,6 +102,8 @@ async function start() {
     info("macropad found");
 
   transport.start();
+
+  info("successfully started");
 }
 
 const NOTE_ON = 144;
@@ -121,26 +136,44 @@ function onMidi(msg) {
         updatePattern();
       }
     } else if (value == 12) {
-      const v = encoderValue[encoderMode] + (data[2] - 100);
-      encoderValue[encoderMode] = v;
-      updateStatus()
-      if (encoderMode == 0)
-        synth.volume.value = v;
-      else if (encoderMode == 1)
-        delay.wet.value = clamp(0, 100, v) / 100;
-      else if (encoderMode == 2)
-        synth.set({ envelope: { attack: clamp(0, 100, v) / 50 } });
-      else if (encoderMode == 3)
-        transport.bpm.value = clamp(1, 500, v);
-      else if (encoderMode == 4) {
-        let x = v;
-        while (x < 0) x += 16;
-        currentStep = x % 16;
-        updatePattern();
+      if (encoderLayer == 0) {
+        const diff = data[2] - 100;
+        let v = encoderMode + diff;
+        while (v < 0) v += 5;
+        v = v % 5;
+        encoderMode = v;
+        updateScreen();
+      } else if (encoderLayer == 1) {
+        const v = encoderValue[encoderMode] + (data[2] - 100);
+        updateStatus();
+        updateScreen();
+        if (encoderMode == 0) {
+          synth.volume.value = v;
+          encoderValue[encoderMode] = v;
+        } else if (encoderMode == 1) {
+          const x = clamp(0, 100, v);
+          encoderValue[encoderMode] = x;
+          delay.wet.value = x / 100;
+        } else if (encoderMode == 2) {
+          const x = clamp(0, 100, v);
+          encoderValue[encoderMode] = x;
+          synth.set({ envelope: { attack: x / 50 } });
+        } else if (encoderMode == 3) {
+          const x = clamp(1, 500, v);
+          transport.bpm.value = x;
+        } else if (encoderMode == 4) {
+          let x = v;
+          while (x < 0) x += 16;
+          const r = x % 16
+          currentStep = r;
+          encoderValue[encoderMode] = r;
+          updatePattern();
+        }
       }
     } else if (value == 13) {
-      encoderMode = (encoderMode + 1) % 5;
+      encoderLayer = (encoderLayer + 1) % 2;
       updateStatus();
+      updateScreen();
     }
   } else if (data[0] == NOTE_OFF) {
     const value = data[1];
