@@ -5,17 +5,20 @@ info("click to start");
 
 const MACROPAD_MIDI_NAME = "Macropad"
 const NEOTRELLIS_MIDI_NAME = "NeoTrellis"
+const MIDI_KEYBOARD = "LPK"
 let macropad = null;
 let macropadOutput = null;
 let neotrellis = null;
 let neotrellisOutput = null;
+let midikeyboard = null;
 
 let synth = null;
 let delay = null;
 let transport = null;
 let sampler = null;
 
-let encoderValue = [0, 0, 0, 120, 0];
+let encoderValue = [0, 0, 0, 120];
+const MODES = 6;
 let encoderMode = 0;
 let encoderLayer = 0;
 function updateStatus() {
@@ -29,12 +32,10 @@ function showNote(note) {
 const pattern = [];
 let currentStep = 0;
 let step = 0;
-for (let i = 0; i < 16; i++) pattern.push(-1);
-const patternDiv = document.getElementById("pattern");
-function updatePattern() {
-  patternDiv.innerText = pattern.map((n, i) => `${i == currentStep ? ">" : " "}${showNote(n)}${i == step ? "<" : " "}`).join(`|`);
-}
-updatePattern();
+for (let i = 0; i < 32; i++) pattern.push(-1);
+let selectedSample = -1;
+let recording = false;
+let metronome = false;
 
 const screenDiv = document.getElementById("screen");
 function updateScreen() {
@@ -43,7 +44,8 @@ function updateScreen() {
 ${encoderMode == 1 && encoderLayer == 0 ? ">" : " "} wet    ${encoderMode == 1 && encoderLayer == 1 ? ">" : " "} ${encoderValue[1]}
 ${encoderMode == 2 && encoderLayer == 0 ? ">" : " "} attack ${encoderMode == 2 && encoderLayer == 1 ? ">" : " "} ${encoderValue[2]}
 ${encoderMode == 3 && encoderLayer == 0 ? ">" : " "} bpm    ${encoderMode == 3 && encoderLayer == 1 ? ">" : " "} ${encoderValue[3]}
-${encoderMode == 4 && encoderLayer == 0 ? ">" : " "} step   ${encoderMode == 4 && encoderLayer == 1 ? ">" : " "} ${encoderValue[4]}`;
+${encoderMode == 4 && encoderLayer == 0 ? ">" : " "} rec    ${encoderMode == 4 && encoderLayer == 1 ? ">" : " "} ${recording}
+${encoderMode == 5 && encoderLayer == 0 ? ">" : " "} tick   ${encoderMode == 5 && encoderLayer == 1 ? ">" : " "} ${metronome}`;
   screenDiv.innerText = txt;
 }
 updateScreen();
@@ -94,6 +96,9 @@ async function start() {
     } else if (input.name.indexOf(NEOTRELLIS_MIDI_NAME) >= 0) {
       neotrellis = input;
       neotrellis.addEventListener("midimessage", onNeoTrellisMidi);
+    } else if (input.name.indexOf(MIDI_KEYBOARD) >= 0) {
+      midikeyboard = input;
+      midikeyboard.addEventListener("midimessage", onKeyboardMidi);
     }
   }
   for (const output of access.outputs.values()) {
@@ -105,13 +110,18 @@ async function start() {
     }
   }
   console.log(`midi inputs: [${inputs.join(", ")}], midi outputs: [${outputs.join(", ")}]`);
-  if (!macropad || !macropadOutput)
+  if (!macropad || !macropadOutput) {
     info(`macropad not found, midi inputs: [${inputs.join(", ")}], midi outputs: [${outputs.join(", ")}]`);
-  else if (!neotrellis || !neotrellisOutput)
+  } else if (!neotrellis || !neotrellisOutput) {
     info(`neotrellis not found, midi inputs: [${inputs.join(", ")}], midi outputs: [${outputs.join(", ")}]`);
-  else
-    info("macropad and neotrellis found");
+    return;
+  } else if (!midikeyboard) {
+    info(`LPK25 not found, midi inputs: [${inputs.join(", ")}], midi outputs: [${outputs.join(", ")}]`);
+    return;
+  } else
+    info("macropad, neotrellis and LPK25 found");
 
+  reset();
   transport.start();
 
   info("successfully started");
@@ -141,6 +151,11 @@ function clamp(min, max, v) {
   return v < min ? min : v > max ? max: v;
 }
 
+function reset() {
+  for (let i = 0; i < 12; i++) macropadOutput.send([NOTE_OFF, i, 0]);
+  for (let i = 0; i < 32; i++) neotrellisOutput.send([NOTE_OFF, i, 0]);
+}
+
 function onMacropadMidi(msg) {
   const data = msg.data;
   if (data[0] == NOTE_ON) {
@@ -150,22 +165,22 @@ function onMacropadMidi(msg) {
       const freq = Tone.Frequency(note, "midi");
       sampler.triggerAttack(freq);
       macropadOutput.send([NOTE_ON, value, 1]);
-      if (encoderMode == 4) {
-        pattern[currentStep] = note;
-        updatePattern();
+      if (selectedSample != -1)
+        macropadOutput.send([NOTE_OFF, selectedSample, 0]);
+      selectedSample = value;
+      if (recording) {
+        pattern[step] = value;
       }
     } else if (value == 12) {
       if (encoderLayer == 0) {
         const diff = data[2] - 100;
         let v = encoderMode + diff;
-        while (v < 0) v += 5;
-        v = v % 5;
+        while (v < 0) v += MODES;
+        v = v % MODES;
         encoderMode = v;
         updateScreen();
       } else if (encoderLayer == 1) {
         const v = encoderValue[encoderMode] + (data[2] - 100);
-        updateStatus();
-        updateScreen();
         if (encoderMode == 0) {
           synth.volume.value = v;
           encoderValue[encoderMode] = v;
@@ -181,13 +196,14 @@ function onMacropadMidi(msg) {
           const x = clamp(1, 500, v);
           transport.bpm.value = x;
         } else if (encoderMode == 4) {
-          let x = v;
-          while (x < 0) x += 16;
-          const r = x % 16
-          currentStep = r;
-          encoderValue[encoderMode] = r;
-          updatePattern();
+          recording = !recording;
+          updateScreen();
+        } else if (encoderMode == 5) {
+          metronome = !metronome;
+          updateScreen();
         }
+        updateStatus();
+        updateScreen();
       }
     } else if (value == 13) {
       encoderLayer = (encoderLayer + 1) % 2;
@@ -200,7 +216,10 @@ function onMacropadMidi(msg) {
       const note = key2note(value);
       const freq = Tone.Frequency(note, "midi");
       sampler.triggerRelease(freq);
-      macropadOutput.send([NOTE_OFF, value, 0]);
+      if (selectedSample == value)
+        macropadOutput.send([NOTE_ON, value, 4]);
+      else
+        macropadOutput.send([NOTE_OFF, value, 0]);
     } else if (value == 13) {
     }
   }
@@ -211,28 +230,48 @@ function onNeoTrellisMidi(msg) {
   if (data[0] == NOTE_ON) {
     const value = data[1];
     if (value < 32) {
-      const note = key2noteTrellis(value);
-      const freq = Tone.Frequency(note, "midi");
-      sampler.triggerAttack(freq);
-      neotrellisOutput.send([NOTE_ON, value, 1]);
+      if (pattern[value] >= 0) {
+        pattern[value] = -1;
+        neotrellisOutput.send([NOTE_OFF, value, 0]);
+      } else if (selectedSample != -1) {
+        pattern[value] = selectedSample;
+        neotrellisOutput.send([NOTE_ON, value, 4]);
+      }
     }
   } else if (data[0] == NOTE_OFF) {
     const value = data[1];
     if (value < 32) {
-      const note = key2noteTrellis(value);
-      const freq = Tone.Frequency(note, "midi");
-      sampler.triggerRelease(freq);
-      neotrellisOutput.send([NOTE_OFF, value, 0]);
+      // const note = key2noteTrellis(value);
+      // const freq = Tone.Frequency(note, "midi");
+      // sampler.triggerRelease(freq);
+      // neotrellisOutput.send([NOTE_OFF, value, 0]);
     }
   }
 }
 
+function onKeyboardMidi(msg) {
+  const data = msg.data;
+  if (data[0] == NOTE_ON) {
+    const freq = Tone.Frequency(data[1], "midi");
+    synth.triggerAttack(freq, Tone.now(), data[2] / 127);
+  } else if (data[0] == NOTE_OFF) {
+    const freq = Tone.Frequency(data[1], "midi");
+    synth.triggerRelease(freq);
+  }
+}
+
 function tick(t) {
-  step = (step + 1) % 16;
-  updatePattern();
+  if (pattern[step] != -1)
+    neotrellisOutput.send([NOTE_ON, step, 4]);
+  else
+    neotrellisOutput.send([NOTE_OFF, step, 0]);
+  step = (step + 1) % 32;
+  neotrellisOutput.send([NOTE_ON, step, 1]);
   const note = pattern[step]
+  if (metronome && step % 4 == 0)
+    sampler.triggerAttackRelease("F4", "16n", t);
   if (note >= 0) {
-    const freq = Tone.Frequency(note, "midi");
+    const freq = Tone.Frequency(key2note(note), "midi");
     sampler.triggerAttackRelease(freq, "16n", t);
   }
 }
