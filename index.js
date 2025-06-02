@@ -3,8 +3,12 @@ function info(msg) { infoDiv.innerText = msg }
 document.addEventListener("click", start);
 info("click to start");
 
+const MACROPAD_MIDI_NAME = "Macropad"
+const NEOTRELLIS_MIDI_NAME = "NeoTrellis"
 let macropad = null;
 let macropadOutput = null;
+let neotrellis = null;
+let neotrellisOutput = null;
 
 let synth = null;
 let delay = null;
@@ -84,22 +88,29 @@ async function start() {
   const outputs = [];
   for (const input of access.inputs.values()) {
     inputs.push(input.name);
-    if (input.name == "CircuitPython Audio" || input.name == "Adafruit Macropad RP2040" || input.name == "Macropad RP2040") {
+    if (input.name.indexOf(MACROPAD_MIDI_NAME) >= 0) {
       macropad = input;
-      macropad.addEventListener("midimessage", onMidi);
+      macropad.addEventListener("midimessage", onMacropadMidi);
+    } else if (input.name.indexOf(NEOTRELLIS_MIDI_NAME) >= 0) {
+      neotrellis = input;
+      neotrellis.addEventListener("midimessage", onNeoTrellisMidi);
     }
   }
   for (const output of access.outputs.values()) {
     outputs.push(output.name);
-    if (output.name == "CircuitPython Audio" || output.name == "Adafruit Macropad RP2040" || output.name == "Macropad RP2040") {
+    if (output.name.indexOf(MACROPAD_MIDI_NAME) >= 0) {
       macropadOutput = output;
+    } else if (output.name.indexOf(NEOTRELLIS_MIDI_NAME) >= 0) {
+      neotrellisOutput = output;
     }
   }
   console.log(`midi inputs: [${inputs.join(", ")}], midi outputs: [${outputs.join(", ")}]`);
   if (!macropad || !macropadOutput)
     info(`macropad not found, midi inputs: [${inputs.join(", ")}], midi outputs: [${outputs.join(", ")}]`);
+  else if (!neotrellis || !neotrellisOutput)
+    info(`neotrellis not found, midi inputs: [${inputs.join(", ")}], midi outputs: [${outputs.join(", ")}]`);
   else
-    info("macropad found");
+    info("macropad and neotrellis found");
 
   transport.start();
 
@@ -118,19 +129,27 @@ function key2note(k) {
   return MAJOR_SCALE[i % MAJOR_SCALE.length] + 60 + octave * 12;
 }
 
+function key2noteTrellis(k) {
+  const x = k % 8;
+  const y = 3 - Math.floor(k / 8);
+  const i = y * 8 + x;
+  const octave = Math.floor(i / MAJOR_SCALE.length);
+  return MAJOR_SCALE[i % MAJOR_SCALE.length] + 60 + octave * 12;
+}
+
 function clamp(min, max, v) {
   return v < min ? min : v > max ? max: v;
 }
 
-function onMidi(msg) {
+function onMacropadMidi(msg) {
   const data = msg.data;
   if (data[0] == NOTE_ON) {
     const value = data[1];
     if (value < 12) {
-      const note = key2note(data[1]);
+      const note = key2note(value);
       const freq = Tone.Frequency(note, "midi");
       sampler.triggerAttack(freq);
-      macropadOutput.send([NOTE_ON, data[1], 1]);
+      macropadOutput.send([NOTE_ON, value, 1]);
       if (encoderMode == 4) {
         pattern[currentStep] = note;
         updatePattern();
@@ -178,11 +197,32 @@ function onMidi(msg) {
   } else if (data[0] == NOTE_OFF) {
     const value = data[1];
     if (value < 12) {
-      const note = key2note(data[1]);
+      const note = key2note(value);
       const freq = Tone.Frequency(note, "midi");
       sampler.triggerRelease(freq);
-      macropadOutput.send([NOTE_OFF, data[1], 0]);
+      macropadOutput.send([NOTE_OFF, value, 0]);
     } else if (value == 13) {
+    }
+  }
+}
+
+function onNeoTrellisMidi(msg) {
+  const data = msg.data;
+  if (data[0] == NOTE_ON) {
+    const value = data[1];
+    if (value < 32) {
+      const note = key2noteTrellis(value);
+      const freq = Tone.Frequency(note, "midi");
+      sampler.triggerAttack(freq);
+      neotrellisOutput.send([NOTE_ON, value, 1]);
+    }
+  } else if (data[0] == NOTE_OFF) {
+    const value = data[1];
+    if (value < 32) {
+      const note = key2noteTrellis(value);
+      const freq = Tone.Frequency(note, "midi");
+      sampler.triggerRelease(freq);
+      neotrellisOutput.send([NOTE_OFF, value, 0]);
     }
   }
 }
