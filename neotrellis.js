@@ -102,7 +102,6 @@ class NeoTrellis {
       if (front[i] != b) {
         front[i] = b;
         output.send([NOTE_ON, i, b]);
-        console.log("draw", i, b);
       }
     }
   }
