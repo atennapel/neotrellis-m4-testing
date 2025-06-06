@@ -93,6 +93,11 @@ class NeoTrellis {
     this.#back[ix] = 0;
   }
 
+  clear() {
+    const back = this.#back;
+    for (let i = 0; i < 32; i++) back[i] = 0;
+  }
+
   draw() {
     const output = this.#output;
     const front = this.#front;

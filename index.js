@@ -3,19 +3,23 @@ function info(msg) { infoDiv.innerText = msg }
 document.addEventListener("click", start);
 info("click to start");
 
-function mod(a, b) {
-  return ((a % b) + b) % b;
-}
-
 const MIDI_KEYBOARD = "LPK"
 let macropad = null;
 let neotrellis = null;
 let midikeyboard = null;
+let instrumentsPage = null;
+let page = null;
 
 let delay = null;
 let transport = null;
 let instruments = null;
 let instrument = null;
+let recording = false;
+
+let notesPressed = 0;
+const keyboardPressed = [];
+for (let i = 0; i < 128; i++) keyboardPressed[i] = null;
+let lastPressed = [];
 
 const patterns = [[]];
 let step = 0;
@@ -57,6 +61,7 @@ function updateScreen() {
   const t = `
 Track ${currentTrack + 1}${mutes[currentTrack] ? " (muted)" : ""}
 instrument ${tracks[currentTrack] + 1}
+recording ${recording}
   `.trim();
   screenDiv.innerText = t;
 }
@@ -145,92 +150,119 @@ async function start() {
   info("successfully started");
 
   drawTracks();
-}
 
-const MAJOR_SCALE = [0, 2, 4, 5, 7, 9, 11];
-
-function key2note(k) {
-  const x = k % 3;
-  const y = 3 - Math.floor(k / 3);
-  const i = y * 3 + x;
-  const octave = Math.floor(i / MAJOR_SCALE.length);
-  return MAJOR_SCALE[i % MAJOR_SCALE.length] + 60 + octave * 12;
-}
-
-function key2noteTrellis(k) {
-  const x = k % 8;
-  const y = 3 - Math.floor(k / 8);
-  const i = y * 8 + x;
-  const octave = Math.floor(i / MAJOR_SCALE.length);
-  return MAJOR_SCALE[i % MAJOR_SCALE.length] + 60 + octave * 12;
-}
-
-function clamp(min, max, v) {
-  return v < min ? min : v > max ? max: v;
+  instrumentsPage = new InstrumentsPage(macropad, neotrellis, screenDiv, delay);
+  page = instrumentsPage;
+  page.draw();
 }
 
 function onMacropadEvent(macropad, event) {
-  if (event.type == Macropad.BUTTON_DOWN) {
-    const value = event.index;
-    if (value < 6) {
-      currentTrack = value;
-      instrument = instruments[tracks[value]];
-      drawPattern();
-    } else {
-      const i = value - 6;
-      mutes[i] = !mutes[i];
+  if (page != null) {
+    if (event.type == Macropad.BUTTON_DOWN) {
+      page.macropadButton(event.index);
+    } else if (event.type == Macropad.ENCODER) {
+      page.encoder(event.diff);
     }
-  } else if (event.type == Macropad.ENCODER_DOWN) {
-    
-  } else if (event.type == Macropad.ENCODER) {
-    const diff = event.diff;
-    const next = mod(tracks[currentTrack] + diff, instruments.length);
-    tracks[currentTrack] = next;
-    instrument = instruments[next];
+  } else {
+    if (event.type == Macropad.BUTTON_DOWN) {
+      const value = event.index;
+      if (value < 6) {
+        currentTrack = value;
+        instrument = instruments[tracks[value]];
+        drawPattern();
+      } else {
+        const i = value - 6;
+        mutes[i] = !mutes[i];
+      }
+    } else if (event.type == Macropad.ENCODER_DOWN) {
+      recording = !recording;
+    } else if (event.type == Macropad.ENCODER) {
+      const diff = event.diff;
+      const next = mod(tracks[currentTrack] + diff, instruments.length);
+      tracks[currentTrack] = next;
+      instrument = instruments[next];
+    }
+    updateScreen();
+    drawTracks();
   }
-  updateScreen();
-  drawTracks();
 }
 
 function onNeoTrellisEvent(neotrellis, event) {
-  if (event.type == NeoTrellis.BUTTON_DOWN) {
-    const value = event.index;
-    const pattern = patterns[currentTrack];
-    if (pattern[value] != null) {
-      pattern[value] = null;
-    } else {
-      pattern[value] = [trackNotes[currentTrack], trackVelocities[currentTrack]];
+  if (page != null) {
+    if (event.type == NeoTrellis.BUTTON_DOWN) {
+      page.neotrellisButton(event.index);
     }
-    drawPattern();
+  } else {
+    if (event.type == NeoTrellis.BUTTON_DOWN) {
+      const value = event.index;
+      const pattern = patterns[currentTrack];
+      if (pattern[value] != null) {
+        pattern[value] = null;
+      } else {
+        pattern[value] = lastPressed;
+      }
+      drawPattern();
+    }
   }
 }
 
 function onKeyboardMidi(msg) {
-  const data = msg.data;
-  if (data[0] == NOTE_ON) {
-    const freq = Tone.Frequency(data[1], "midi");
-    instrument.triggerAttack(freq, Tone.now(), data[2] / 127);
-    trackNotes[currentTrack] = data[1];
-    trackVelocities[currentTrack] = data[2];
-  } else if (data[0] == NOTE_OFF) {
-    const freq = Tone.Frequency(data[1], "midi");
-    instrument.triggerRelease(freq);
+  if (page != null) {
+    const data = msg.data;
+    const type = data[0];
+    if (type == NOTE_ON)
+      page.keyboardOn(data[1], data[2]);
+    else if (type == NOTE_OFF)
+      page.keyboardOff(data[1]);
+  } else {
+    const data = msg.data;
+    if (data[0] == NOTE_ON) {
+      notesPressed++;
+      const note = data[1];
+      const velocity = data[2];
+      keyboardPressed[note] = {note, velocity};
+      const freq = Tone.Frequency(note, "midi");
+      instrument.triggerAttack(freq, Tone.now(), velocity / 127);
+      trackNotes[currentTrack] = note;
+      trackVelocities[currentTrack] = velocity;
+      lastPressed = [];
+      for (let i = 0; i < 128; i++) {
+        if (keyboardPressed[i] != null)
+          lastPressed.push(keyboardPressed[i]);
+      }
+      if (recording) {
+        const pattern = patterns[currentTrack];
+        pattern[step] = lastPressed;
+        drawPattern();
+      }
+    } else if (data[0] == NOTE_OFF) {
+      const note = data[1];
+      keyboardPressed[note] = null;
+      const freq = Tone.Frequency(note, "midi");
+      instrument.triggerRelease(freq);
+    }
   }
 }
 
 function tick(t) {
-  step = (step + 1) % 32;
+  if (page == null) {
+    step = (step + 1) % 32;
 
-  for (let i = 0; i < 6; i++) {
-    if (!mutes[i]) {
-      const pattern = patterns[i]
-      const note = pattern[step]
-      if (note != null) {
-        const freq = Tone.Frequency(note[0], "midi");
-        instruments[tracks[i]].triggerAttackRelease(freq, "16n", t, note[1] / 127);
+    for (let i = 0; i < 6; i++) {
+      if (!mutes[i]) {
+        const pattern = patterns[i]
+        const data = pattern[step]
+        if (data != null) {
+          const instrument = instruments[tracks[i]];
+          for (let j = 0; j < data.length; j++) {
+            const notedata = data[j];
+            const freq = Tone.Frequency(notedata.note, "midi");
+            instrument.triggerAttackRelease(freq, "16n", t, notedata.velocity / 127);
+          }
+        }
       }
     }
+    
+    drawPattern();
   }
-  
-  drawPattern();
 }

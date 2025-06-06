@@ -93,6 +93,11 @@ class Macropad {
     this.#back[ix] = 0;
   }
 
+  clear() {
+    const back = this.#back;
+    for (let i = 0; i < 12; i++) back[i] = 0;
+  }
+
   draw() {
     const output = this.#output;
     const front = this.#front;
