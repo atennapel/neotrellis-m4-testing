@@ -8,6 +8,7 @@ let macropad = null;
 let neotrellis = null;
 let midikeyboard = null;
 let instrumentsPage = null;
+let pianorollPage = null;
 let page = null;
 
 let delay = null;
@@ -152,6 +153,7 @@ async function start() {
   drawTracks();
 
   instrumentsPage = new InstrumentsPage(macropad, neotrellis, screenDiv, delay);
+  pianorollPage = new PianoRollPage(macropad, neotrellis, screenDiv);
   page = instrumentsPage;
   page.draw();
 }
@@ -161,7 +163,10 @@ function onMacropadEvent(macropad, event) {
     if (event.type == Macropad.BUTTON_DOWN) {
       page.macropadButton(event.index);
     } else if (event.type == Macropad.ENCODER) {
-      page.encoder(event.diff);
+      page.macropadEncoder(event.diff);
+    } else if (event.type == Macropad.ENCODER_DOWN) {
+      page = page == instrumentsPage ? pianorollPage : instrumentsPage;
+      page.draw();
     }
   } else {
     if (event.type == Macropad.BUTTON_DOWN) {
@@ -191,6 +196,10 @@ function onNeoTrellisEvent(neotrellis, event) {
   if (page != null) {
     if (event.type == NeoTrellis.BUTTON_DOWN) {
       page.neotrellisButton(event.index);
+    } else if (event.type == NeoTrellis.ENCODER) {
+      page.neotrellisEncoder(event.diff);
+    } else if (event.type == NeoTrellis.ENCODER_DOWN) {
+      page.neotrellisEncoderDown();
     }
   } else {
     if (event.type == NeoTrellis.BUTTON_DOWN) {

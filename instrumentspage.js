@@ -1,8 +1,11 @@
 class InstrumentsPage {
-  static TYPES = ["kit", "synth"];
+  static TYPES = ["kit", "mono", "poly", "metal", "membrane"];
   static PARAMETERS = [
     ["type", "kit", "volume", "curve", "attack", "release"],
-    ["type", "volume", "attack", "decay", "release"],
+    ["type", "volume", "attack", "decay", "sustain", "release", "portamento"],
+    ["type", "volume", "attack", "decay", "sustain", "release", "portamento"],
+    ["type", "volume", "attack", "decay", "sustain", "release", "portamento"],
+    ["type", "volume", "attack", "decay", "sustain", "release", "portamento"],
   ];
   static KITS = [
     "4OP-FM",
@@ -91,8 +94,10 @@ class InstrumentsPage {
       return InstrumentsPage.KITS[value];
     if (parameter == "curve")
       return value == 0 ? "linear" : "exponential";
-    if (parameter == "attack" || parameter == "decay" || parameter == "release")
+    if (parameter == "attack" || parameter == "decay" || parameter == "release" || parameter == "portamento")
       return `${(value / 100).toFixed(2)}s`;
+    if (parameter == "sustain")
+      return `${(value / 100).toFixed(2)}`;
     return value;
   }
 
@@ -134,6 +139,9 @@ class InstrumentsPage {
     this.draw();
   }
 
+  neotrellisEncoder(diff) {}
+  neotrellisEncoderDown() {}
+
   keyboardOn(note, velocity) {
     const instrumentIx = this.#selectedInstrument;
     const instrument = this.#instruments[instrumentIx];
@@ -148,7 +156,7 @@ class InstrumentsPage {
     instrument.toneInstrument.triggerRelease(freq);
   }
 
-  encoder(diff) {
+  macropadEncoder(diff) {
     const instrumentIx = this.#selectedInstrument;
     const instrument = this.#instruments[instrumentIx];
     const parameters = InstrumentsPage.PARAMETERS[instrument.type];
@@ -167,12 +175,41 @@ class InstrumentsPage {
           instrument.attack = 0;
           instrument.release = 10;
         } else if (newtype == 1) {
-          const toneInstrument = new Tone.PolySynth(Tone.Synth, {maxPolyphony: 12}).connect(this.#dest);
+          const toneInstrument = new Tone.MonoSynth().connect(this.#dest);
           instrument.toneInstrument = toneInstrument;
           instrument.volume = 0;
           instrument.attack = 0;
           instrument.decay = 10;
+          instrument.sustain = 90;
           instrument.release = 100;
+          instrument.portamento = 0;
+        } else if (newtype == 2) {
+          const toneInstrument = new Tone.PolySynth().connect(this.#dest);
+          instrument.toneInstrument = toneInstrument;
+          instrument.volume = 0;
+          instrument.attack = 0;
+          instrument.decay = 10;
+          instrument.sustain = 30;
+          instrument.release = 100;
+          instrument.portamento = 0;
+        } else if (newtype == 3) {
+          const toneInstrument = new Tone.MetalSynth().connect(this.#dest);
+          instrument.toneInstrument = toneInstrument;
+          instrument.volume = 0;
+          instrument.attack = 0;
+          instrument.decay = 140;
+          instrument.sustain = 0;
+          instrument.release = 20;
+          instrument.portamento = 0;
+        } else if (newtype == 4) {
+          const toneInstrument = new Tone.MembraneSynth().connect(this.#dest);
+          instrument.toneInstrument = toneInstrument;
+          instrument.volume = 0;
+          instrument.attack = 0;
+          instrument.decay = 40;
+          instrument.sustain = 0;
+          instrument.release = 140;
+          instrument.portamento = 0;
         }
       }
     } else if (parameter == "kit") {
@@ -196,13 +233,31 @@ class InstrumentsPage {
         instrument[parameter] = value;
         if (instrument.type == 0) {
           instrument.toneInstrument[parameter] = value / 100;
-        } else if (instrument.type == 1) {
+        } else {
           instrument.toneInstrument.set({
             envelope: {
               [parameter]: value / 100
             }
           })
         }
+      }
+    } else if (parameter == "sustain") {
+      const value = instrument[parameter] + diff;
+      if (value >= 0 && value <= 100) {
+        instrument[parameter] = value;
+        instrument.toneInstrument.set({
+          envelope: {
+            sustain: value / 100
+          }
+        })
+      }
+    } else if (parameter == "portamento") {
+      const value = instrument[parameter] + diff;
+      if (value >= 0) {
+        instrument[parameter] = value;
+        instrument.toneInstrument.set({
+          portamento: value / 100
+        })
       }
     }
     this.draw();
