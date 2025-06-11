@@ -265,5 +265,6 @@ class InstrumentsPage {
     this.draw();
   }
 
-  tick(t, step) {}
+  tick(t, step) {
+  }
 }

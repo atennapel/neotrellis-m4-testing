@@ -102,13 +102,16 @@ class NeoTrellis {
     const output = this.#output;
     const front = this.#front;
     const back = this.#back;
+    //let count = 0;
     for (let i = 0; i < 32; i++) {
       const b = back[i];
       if (front[i] != b) {
         front[i] = b;
         output.send([NOTE_ON, i, b]);
+    //    count++;
       }
     }
+    //if (count > 0) console.log(`neotrellis draw: ${count} commands`);
   }
 
   reset() {
