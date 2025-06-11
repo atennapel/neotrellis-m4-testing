@@ -144,7 +144,7 @@ class PianoRollPage {
   neotrellisEncoder(diff) {
     if (this.#axis) {
       const x = this.#x + diff;
-      if (x >= 0 && x <= 24)
+      if (x >= 0 && x <= patternLength - 8)
         this.#x = x;
     } else {
       const y = this.#y + diff;
