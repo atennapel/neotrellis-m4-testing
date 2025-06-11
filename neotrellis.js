@@ -121,4 +121,10 @@ class NeoTrellis {
       output.send([NOTE_ON, i, 0]);
     }
   }
+
+  static getPosition(ix) {
+    const x = ix % 8;
+    const y = Math.floor(ix / 8);
+    return [x, y];
+  }
 }

@@ -195,7 +195,9 @@ function onMacropadEvent(macropad, event) {
 function onNeoTrellisEvent(neotrellis, event) {
   if (page != null) {
     if (event.type == NeoTrellis.BUTTON_DOWN) {
-      page.neotrellisButton(event.index);
+      page.neotrellisButtonDown(event.index);
+    } else if (event.type == NeoTrellis.BUTTON_UP) {
+      page.neotrellisButtonUp(event.index);
     } else if (event.type == NeoTrellis.ENCODER) {
       page.neotrellisEncoder(event.diff);
     } else if (event.type == NeoTrellis.ENCODER_DOWN) {
@@ -254,9 +256,8 @@ function onKeyboardMidi(msg) {
 }
 
 function tick(t) {
+  step = (step + 1) % 32;
   if (page == null) {
-    step = (step + 1) % 32;
-
     for (let i = 0; i < 6; i++) {
       if (!mutes[i]) {
         const pattern = patterns[i]
@@ -271,7 +272,8 @@ function tick(t) {
         }
       }
     }
-    
     drawPattern();
+  } else {
+    page.tick(t, step);
   }
 }

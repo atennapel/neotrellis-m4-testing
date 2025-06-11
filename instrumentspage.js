@@ -129,7 +129,7 @@ class InstrumentsPage {
     this.draw();
   }
 
-  neotrellisButton(ix) {
+  neotrellisButtonDown(ix) {
     const instrumentIx = this.#selectedInstrument;
     const instrument = this.#instruments[instrumentIx];
     const type = instrument.type;
@@ -138,6 +138,8 @@ class InstrumentsPage {
       this.#parameter = ix;
     this.draw();
   }
+
+  neotrellisButtonUp(ix) {}
 
   neotrellisEncoder(diff) {}
   neotrellisEncoderDown() {}
@@ -262,4 +264,6 @@ class InstrumentsPage {
     }
     this.draw();
   }
+
+  tick(t, step) {}
 }
