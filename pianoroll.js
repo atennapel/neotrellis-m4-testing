@@ -23,13 +23,15 @@ class PianoRoll {
     return this.#length;
   }
 
-  // TODO: do not allow overlap!
   addNote(note, start, length) {
     let notes = this.#notes[note];
     if (!notes) {
       notes = [];
       this.#notes[note] = notes;
     }
+    const row = this.#grid[note];
+
+    // find where to add the new note
     let i = 0;
     for (; i < notes.length; i++) {
       const noteToCheckStart = notes[i].start;
@@ -38,20 +40,50 @@ class PianoRoll {
       else if (noteToCheckStart > start)
         break;
     }
+
+    // cut short previous note
+    const prevIx = i - 1;
+    if (prevIx >= 0 && prevIx < notes.length) {
+      const prev = notes[prevIx];
+      const oldLength = prev.length;
+      if (prev.start + oldLength - 1 >= start) {
+        prev.length = start - prev.start;
+        const lengthToClear = oldLength - prev.length;
+        for (let x = start; x < start + lengthToClear; x++)
+          row[x] = null;
+      }
+    }
+
+    // check overlap with next note
+    if (i >= 0 && i < notes.length) {
+      const next = notes[i];
+      if (i == notes.length - 1)
+        notes.pop();
+      else
+        notes.splice(i, 1);
+      for (let x = next.start; x < next.start + next.length; x++)
+        row[x] = null;
+    }
+
+    // add note
     const noteToAdd = new Note(note, start, length);
     if (i == notes.length)
       notes.push(noteToAdd)
     else
       notes.splice(i, 0, noteToAdd);
     const maxLength = this.#length;
-    const row = this.#grid[note];
     for (let x = start; x < start + length && x < maxLength; x++)
       row[x] = new GridEntry(noteToAdd, x == start);
     return true;
   }
 
+  addChord(notes, start, length) {
+    notes.forEach(note => this.addNote(note, start, length));
+  }
+
   removeNote(note, start) {
     const notes = this.#notes[note];
+    if (!notes) return;
     let i = 0;
     let length = 1;
     for (; i < notes.length; i++) {
@@ -60,10 +92,15 @@ class PianoRoll {
         break;
       }
     }
+    if (i == notes.length) return;
     notes.splice(i, 1);
     const grid = this.#grid;
     for (let i = 0; i < length; i++)
       grid[note][start + i] = null;
+  }
+
+  removeChord(notes, start) {
+    notes.forEach(note => this.removeNote(note, start));
   }
 
   get grid() {
@@ -72,19 +109,15 @@ class PianoRoll {
 }
 
 class Note {
-  #note;
-  #start;
-  #length;
+  note;
+  start;
+  length;
 
   constructor(note, start, length) {
-    this.#note = note;
-    this.#start = start;
-    this.#length = length;
+    this.note = note;
+    this.start = start;
+    this.length = length;
   }
-
-  get note() { return this.#note }
-  get start() { return this.#start }
-  get length() { return this.#length }
 }
 
 class GridEntry {

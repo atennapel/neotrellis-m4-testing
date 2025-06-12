@@ -12,9 +12,9 @@ class PianoRollPage {
   #axis = false;
   #x = 0;
   #y = 60;
-  #selStart = -1;
-  #selEnd = -1;
   #step = 0;
+  #selStart = -1;
+  #noteChanged = false;
 
   constructor(macropad, neotrellis, screen, instruments) {
     this.#macropad = macropad;
@@ -49,13 +49,8 @@ class PianoRollPage {
       }
     }
     const start = this.#selStart;
-    const end = this.#selEnd;
     if (start != -1)
       neotrellis.set(start, BLUE);
-    if (end != -1) {
-      for (let i = start + 1; i <= end; i++)
-        neotrellis.set(i, CYAN);
-    }
     const step = this.#step
     if (step >= startX && step < startX + 8) {
       const x = step - startX;
@@ -92,52 +87,54 @@ class PianoRollPage {
     this.#drawText();
   }
 
-  keyboardOn(note, velocity) {}
-  keyboardOff(note) {}
+  keyboardOn(note, velocity) {
+    const instrument = this.#instruments[this.#tracks[this.#track]].toneInstrument
+    const freq = Tone.Frequency(note, "midi");
+    instrument.triggerAttack(freq, Tone.now(), velocity / 127);
+  }
+
+  keyboardOff(note) {
+    const instrument = this.#instruments[this.#tracks[this.#track]].toneInstrument
+    const freq = Tone.Frequency(note, "midi");
+    instrument.triggerRelease(freq);
+  }
 
   neotrellisButtonDown(ix) {
     const start = this.#selStart;
-    if (start == -1)
+    if (start == -1) {
       this.#selStart = ix;
-    else {
+      const x = this.#x + (ix % 8);
+      const y = this.#y + (3 - Math.floor(ix / 8))
+      const gridValue = this.#pianoroll.grid[y][x];
+      if (gridValue && gridValue.isHead) {
+        this.#pianoroll.removeNote(y, x);
+        this.#noteChanged = true;
+      }
+    } else {
       const [x1, y1] = NeoTrellis.getPosition(start);
       const [x2, y2] = NeoTrellis.getPosition(ix);
-      if (y1 == y2 && x2 > x1)
-        this.#selEnd = ix;
+      if (y1 == y2 && x2 > x1) {
+        const note = (3 - Math.floor(ix / 8)) + this.#y;
+        const step = (start % 8) + this.#x;
+        this.#pianoroll.removeNote(note, step);
+        this.#pianoroll.addNote(note, step, ix - start + 1);
+        this.#noteChanged = true
+      }
     }
     this.#drawNeotrellis();
   }
 
   neotrellisButtonUp(ix) {
-    const start = this.#selStart;
-    const end = this.#selEnd;
-    if (ix == start) {
-      if (end == -1) {
-        const x = this.#x + (ix % 8);
-        const y = this.#y + (3 - Math.floor(ix / 8))
-        const gridValue = this.#pianoroll.grid[y][x];
-        if (gridValue && gridValue.isHead) {
-          this.#selStart = -1;
-          this.#pianoroll.removeNote(y, x);
-          this.#drawNeotrellis();
-        } else {
-          this.#selStart = -1;
-          const note = (3 - Math.floor(ix / 8)) + this.#y;
-          const step = (ix % 8) + this.#x;
-          this.#pianoroll.addNote(note, step, 1);
-          this.#drawNeotrellis();
-        }
-      } else {
-        this.#selStart = -1;
-        this.#selEnd = -1;
+    if (ix == this.#selStart) {
+      this.#selStart = -1;
+      if (this.#noteChanged)
+        this.#noteChanged = false;
+      else {
         const note = (3 - Math.floor(ix / 8)) + this.#y;
         const step = (ix % 8) + this.#x;
-        this.#pianoroll.addNote(note, step, end - start + 1);
-        this.#drawNeotrellis();
+        this.#pianoroll.removeNote(note, step);
+        this.#pianoroll.addNote(note, step, 1);
       }
-    } else if (ix == end) {
-      this.#selEnd = -1;
-      this.#drawNeotrellis();
     }
   }
 

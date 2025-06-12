@@ -2,8 +2,10 @@ const MIDI_KEYBOARD = "LPK"
 let macropad = null;
 let neotrellis = null;
 let midikeyboard = null;
+
 let instrumentsPage = null;
 let pianorollPage = null;
+let patternPage = null;
 let page = null;
 
 let delay = null;
@@ -64,6 +66,7 @@ async function start() {
 
   instrumentsPage = new InstrumentsPage(macropad, neotrellis, screenDiv, delay);
   pianorollPage = new PianoRollPage(macropad, neotrellis, screenDiv, instrumentsPage.instruments);
+  patternPage = new PatternPage(macropad, neotrellis, screenDiv, instrumentsPage.instruments);
   page = instrumentsPage;
 
   info("successfully started");
@@ -77,7 +80,7 @@ function onMacropadEvent(macropad, event) {
   } else if (event.type == Macropad.ENCODER) {
     page.macropadEncoder(event.diff);
   } else if (event.type == Macropad.ENCODER_DOWN) {
-    page = page == instrumentsPage ? pianorollPage : instrumentsPage;
+    page = page == instrumentsPage ? pianorollPage : page == pianorollPage ? patternPage : instrumentsPage;
     page.draw();
   }
 }
