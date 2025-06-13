@@ -134,6 +134,7 @@ class PianoRollPage {
         const step = (ix % 8) + this.#x;
         this.#pianoroll.removeNote(note, step);
         this.#pianoroll.addNote(note, step, 1);
+        this.#drawNeotrellis();
       }
     }
   }

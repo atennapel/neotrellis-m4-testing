@@ -8,9 +8,12 @@ class PatternPage {
   #track = 0;
   #patterns;
 
+  #selStart = -1;
+  #noteChanged = false;
   #pressedKeys = [];
   #velocities = {};
 
+  #patternLength = 16
   #step = 0;
 
   constructor(macropad, neotrellis, screen, instruments) {
@@ -21,7 +24,7 @@ class PatternPage {
 
     this.#patterns = Array(12);
     for (let i = 0; i < 12; i++)
-      this.#patterns[i] = Array(patternLength).fill(null);
+      this.#patterns[i] = Array(this.#patternLength).fill(null);
   }
 
   #drawMacropad() {
@@ -36,10 +39,14 @@ class PatternPage {
     neotrellis.clear();
     neotrellis.set(this.#step, REDH);
     const pattern = this.#patterns[this.#track];
-    for (let i = 0; i < patternLength; i++) {
-      if (pattern[i])
-        neotrellis.set(i, i == this.#step ? PURPLE : BLUEH);
+    for (let i = 0; i < this.#patternLength; i++) {
+      const note = pattern[i];
+      if (note)
+        neotrellis.set(i, i == this.#step ? PURPLE : note.isHead ? BLUEH : CYANH);
     }
+    const start = this.#selStart
+    if (start != -1)
+      neotrellis.set(start, BLUE);
     neotrellis.draw();
   }
 
@@ -85,36 +92,68 @@ class PatternPage {
     this.#pressedKeys.splice(i, 1);
   }
 
-  // TODO: ability to draw note length
   neotrellisButtonDown(ix) {
-    if (ix < patternLength) {
-      const pressedKeys = this.#pressedKeys;
+    if (ix < this.#patternLength) {
       const pattern = this.#patterns[this.#track];
-      if (pressedKeys.length > 0) {
-        const notes = Array(this.#pressedKeys.length);
-        for (let i = 0; i < pressedKeys.length; i++) {
-          const note = pressedKeys[i];
-          notes[i] = new StepNote(note, this.#velocities[note]);
+      const start = this.#selStart
+      if (start == -1) {
+        this.#selStart = ix;
+        const value = pattern[ix];
+        if (value && value.isHead) {
+          for (let i = ix; i < this.#patternLength; i++) {
+            const c = pattern[i];
+            if (!c || (c.isHead && i != ix)) break;
+            pattern[i] = null;
+          }
+          this.#noteChanged = true;
+          this.#drawNeotrellis();
         }
-        pattern[ix] = new Step(notes);
-      } else if (pattern[ix]) {
-        pattern[ix] = null;
+      } else {
+        if (ix > start) {
+          const pressedKeys = this.#pressedKeys;
+          if (pressedKeys.length > 0) {
+            const notes = Array(this.#pressedKeys.length);
+            for (let i = 0; i < pressedKeys.length; i++) {
+              const note = pressedKeys[i];
+              notes[i] = new StepNote(note, this.#velocities[note]);
+            }
+            pattern[start] = new Step(notes, true, ix - start + 1);
+            for (let i = start + 1; i <= ix; i++)
+              pattern[i] = new Step(notes, false, 0);
+            this.#noteChanged = true;
+            this.#drawNeotrellis();
+          }
+        }
       }
     }
-    this.#drawNeotrellis();
   }
 
   neotrellisButtonUp(ix) {
-    
+    if (ix < this.#patternLength) {
+      if (ix == this.#selStart) {
+        this.#selStart = -1
+        if (this.#noteChanged)
+          this.#noteChanged = false;
+        else {
+          const pressedKeys = this.#pressedKeys;
+          if (pressedKeys.length > 0) {
+            const notes = Array(this.#pressedKeys.length);
+            for (let i = 0; i < pressedKeys.length; i++) {
+              const note = pressedKeys[i];
+              notes[i] = new StepNote(note, this.#velocities[note]);
+            }
+            const pattern = this.#patterns[this.#track];
+            pattern[ix] = new Step(notes, true, 1);
+            this.#drawNeotrellis();
+          }
+        }
+      }
+    }
   }
 
-  neotrellisEncoder(diff) {
-    
-  }
+  neotrellisEncoder(diff) {}
 
-  neotrellisEncoderDown() {
-    
-  }
+  neotrellisEncoderDown() {}
 
   tick(t, step) {
     this.#step = step;
@@ -123,12 +162,12 @@ class PatternPage {
       const toneInstrument = this.#instruments[this.#tracks[p]].toneInstrument;
       const pattern = patterns[p];
       const cstep = pattern[step];
-      if (cstep) {
+      if (cstep && cstep.isHead) {
         const notes = cstep.notes;
         for (let i = 0; i < notes.length; i++) {
           const note = notes[i];
           const freq = Tone.Frequency(note.note, "midi");
-          toneInstrument.triggerAttackRelease(freq, `0:0:1`, t, note.velocity / 127);
+          toneInstrument.triggerAttackRelease(freq, `0:0:${cstep.length}`, t, note.velocity / 127);
         }
       }
     }
@@ -138,9 +177,13 @@ class PatternPage {
 
 class Step {
   notes;
+  isHead;
+  length;
 
-  constructor(notes) {
+  constructor(notes, isHead, length) {
     this.notes = notes;
+    this.isHead = isHead;
+    this.length = length;
   }
 }
 
