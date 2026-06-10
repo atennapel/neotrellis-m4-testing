@@ -90,14 +90,17 @@ container.addEventListener("pointerup", e => handleEnd(e));
 container.addEventListener("pointercancel", e => handleEnd(e));
 container.addEventListener("pointermove", e => handleMove(e));
 
-let synth;
-
+let synth, reverb;
 container.addEventListener("pointerdown", init);
 function init() {
   Tone.setContext(new Tone.Context({ latencyHint: "interactive", lookAhead: 0 }));
   Tone.start();
-  synth = new Tone.PolySynth(Tone.Synth).toDestination();
-  synth.maxPolyphony = 10;
+  reverb = new Tone.Reverb({
+    decay: 1.0,
+    preDelay: 0.01
+  }).toDestination();
+  synth = new Tone.PolySynth(Tone.Synth).connect(reverb);
+  synth.maxPolyphony = 128;
   container.removeEventListener("pointerdown", init);
 }
 
