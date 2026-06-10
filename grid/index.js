@@ -9,11 +9,22 @@ window.addEventListener("resize", function () {
 
 const buttons = [];
 
+const notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+function note2text(note) {
+  const n = note % 12;
+  const o = Math.floor(note / 12) - 1;
+  return notes[n] + o;
+}
+
 for (let i = 0; i < 128; i++) {
   const button = document.createElement("div");
   button.classList.add("button");
   container.appendChild(button);
   buttons.push(button);
+  const note = calcNote(i);
+  changeColor(i, isWhite(note) ? "white" : "grey");
+  button.innerText = note2text(note);
+  button.style.color = isWhite(note) ? "grey" : "white";
 }
 
 function changeColor(i, color) {
@@ -95,23 +106,28 @@ function calcNote(i) {
   const y = 7 - Math.floor(i / 16);
   return 60 - 24 + x + (y * 5);
 }
-function trigger(i) {
+function trigger(note) {
   if (!synth) return;
-  const note = calcNote(i);
   const freq = Tone.Frequency(note, "midi");
   synth.triggerAttack(freq, Tone.now(), 0.8);
 }
-function release(i) {
-  const note = calcNote(i);
+function release(note) {
   const freq = Tone.Frequency(note, "midi");
   synth.triggerRelease(freq);
 }
 
 function resetButton(i) {
-  changeColor(i, "white");
-  release(i);
+  const note = calcNote(i);
+  changeColor(i, isWhite(note) ? "white" : "grey");
+  release(note);
 }
 function highlightButton(i) {
-  changeColor(i, "lightblue");
-  trigger(i);
+  const note = calcNote(i);
+  changeColor(i, isWhite(note) ? "lightblue" : "darkblue");
+  trigger(note);
+}
+
+function isWhite(note) {
+  const n = note % 12;
+  return n === 0 || n === 2 || n === 4 || n === 5 || n === 7 || n === 9 || n === 11;
 }
