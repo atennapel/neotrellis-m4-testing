@@ -1,5 +1,3 @@
-var curKit = 8;
-
 const container = document.getElementById("container");
 container.innerText = "click to start";
 container.addEventListener("pointerdown", init);
@@ -11,15 +9,97 @@ async function init() {
   await Tone.start();
 
   const grid = new Grid(container, gridHandler);
-  const pattern = Array(128).fill(false);
+  const patterns = Array(16);
+  for (let i = 0; i < 16; i++)
+    patterns[i] = Array(112).fill(false);
+  let currentInstrument = 0;
+  const instruments = Array(16);
   function gridHandler(i, pressed) {
     if (pressed) {
-      pattern[i] = !pattern[i];
+      if (i < 112)
+        patterns[currentInstrument][i] = !patterns[currentInstrument][i];
+      else
+        currentInstrument = i - 112;
     }
   }
 
   const synth = new Tone.PolySynth(Tone.Synth).toDestination();
-  synth.maxPolyphony = 128;
+  synth.maxPolyphony = 100;
+
+  const reverb = new Tone.Reverb({
+    decay: 4,
+    wet: 0.25
+  }).toDestination();
+  const pluck = new Tone.PluckSynth({
+    attackNoise: 1.5,
+    dampening: 6000,
+    resonance: 0.9
+  }).connect(reverb);
+
+  const synth2 = new Tone.PolySynth(Tone.Synth, {
+    oscillator: {
+      type: "triangle"
+    },
+    envelope: {
+      attack: 0.005,
+      decay: 0.2,
+      sustain: 0.4,
+      release: 2.5
+    }
+  }).toDestination();
+  synth2.maxPolyphony = 100;
+
+  const synth3 = new Tone.PolySynth(Tone.AMSynth, {
+    harmonicity: 2,
+    oscillator: {
+      type: "sawtooth"
+    },
+    envelope: {
+      attack: 0.05,
+      decay: 0.3,
+      sustain: 0.6,
+      release: 1.2
+    }
+  }).toDestination();
+  synth3.maxPolyphony = 100;
+
+  const synth4 = new Tone.PolySynth(Tone.FMSynth, {
+    harmonicity: 2,
+    modulationIndex: 10,
+    envelope: {
+      attack: 0.01,
+      decay: 0.4,
+      sustain: 0.2,
+      release: 1.5
+    }
+  }).toDestination();
+  synth4.maxPolyphony = 100;
+
+  const synth5 = new Tone.PolySynth(Tone.Synth, {
+    oscillator: {
+      type: "square"
+    },
+    envelope: {
+      attack: 0.005,
+      decay: 0.15,
+      sustain: 0,
+      release: 0.8
+    }
+  }).toDestination();
+  synth5.maxPolyphony = 100;
+
+  const synth6 = new Tone.PolySynth(Tone.Synth, {
+    oscillator: {
+      type: "sawtooth"
+    },
+    envelope: {
+      attack: 0.02,
+      decay: 0.4,
+      sustain: 0.7,
+      release: 2
+    }
+  }).toDestination();
+  synth6.maxPolyphony = 100;
 
   const kits = Array(KITS.length);
   for (let i = 0; i < KITS.length; i++) {
@@ -38,6 +118,18 @@ async function init() {
     kits[i] = sampler;
   }
 
+  for (let i = 0; i < 16; i++)
+    instruments[i] = synth;
+  instruments[0] = kits[0];
+  instruments[1] = synth;
+  instruments[2] = synth;
+  instruments[3] = pluck;
+  instruments[4] = synth2;
+  instruments[5] = synth3;
+  instruments[6] = synth4;
+  instruments[7] = synth5;
+  instruments[8] = synth6;
+
   const transport = Tone.getTransport()
   transport.bpm.value = 120;
   transport.swing = 0;
@@ -48,24 +140,28 @@ async function init() {
   function tick(t) {
     step = (step + 1) % 16;
 
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 7; i++) {
       const j = step + 16 * i;
-      if (pattern[j]) {
-        const octave = Math.floor((7 - i) / 7);
-        const note = 60 + MAJOR[(7 - i) % 7] + 12 * octave;
-        const freq = Tone.Frequency(note, "midi");
-        kits[curKit].triggerAttackRelease(freq, "16n", t, 1);
+      const octave = Math.floor((6 - i) / 6);
+      const note = 60 + MAJOR[(6 - i) % 6] + 12 * octave;
+      for (let instr = 0; instr < 16; instr++) {
+        if (patterns[instr][j]) {
+          const freq = Tone.Frequency(note + (instr === 2 ? -24 : 0), "midi");
+          instruments[instr].triggerAttackRelease(freq, "16n", t, 1);
+        }
       }
     }
   }
 
   const keys = new Map();
   window.addEventListener("keydown", e => {
-    keys.set(e.key, true);
-    const note = key2note(e.key);
-    if (note >= 0) {
-      const freq = Tone.Frequency(note, "midi");
-      kits[curKit].triggerAttack(freq, Tone.now(), 0.8);
+    if (!keys.get(e.key)) {
+      keys.set(e.key, true);
+      const note = key2note(e.key);
+      if (note >= 0) {
+        const freq = Tone.Frequency(note, "midi");
+        instruments[currentInstrument].triggerAttack(freq, Tone.now(), 0.8);
+      }
     }
   });
   window.addEventListener("keyup", e => {
@@ -74,7 +170,7 @@ async function init() {
       const note = key2note(e.key);
       if (note >= 0) {
         const freq = Tone.Frequency(note, "midi");
-        synth.triggerRelease(freq);
+        instruments[currentInstrument].triggerRelease(freq);
       }
     }
   });
@@ -104,16 +200,18 @@ async function init() {
 
   function draw() {
     grid.clear();
-    for (let i = 0; i < 128; i++) {
-      if (pattern[i]) {
+    for (let i = 0; i < 112; i++) {
+      if (patterns[currentInstrument][i]) {
         grid.set(i, BLUE);
       }
     }
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 7; i++) {
       const j = step + 16 * i;
-      const set = pattern[j];
+      const set = patterns[currentInstrument][j];
       grid.set(j, set ? DARKBLUE : GREY);
     }
+    for (let i = 0; i < 16; i++)
+      grid.set(i + 112, currentInstrument === i ? RED : PINK);
   }
 
   function update(t) {
@@ -124,4 +222,7 @@ async function init() {
   update();
 
   transport.start();
+
+  for (let i = 0; i < 16; i++)
+    grid.setText(i + 112, `${i + 1}`);
 }

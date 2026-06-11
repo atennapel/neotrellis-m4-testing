@@ -85,6 +85,10 @@ class Grid {
     return this.#pressed[i];
   }
 
+  setText(ix, text) {
+    this.#buttons[ix].innerText = text;
+  }
+
   set(ix, color) {
     this.#back[ix] = color;
   }
