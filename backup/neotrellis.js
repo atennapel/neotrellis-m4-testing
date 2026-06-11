@@ -51,23 +51,23 @@ class NeoTrellis {
       const i = data[1];
       if (i < 32) {
         pressed[i] = true;
-        event = {type: NeoTrellis.BUTTON_DOWN, index: i};
+        event = { type: NeoTrellis.BUTTON_DOWN, index: i };
       } else if (i == 33) {
         this.#encoderPressed = true;
-        event = {type: NeoTrellis.ENCODER_DOWN};
+        event = { type: NeoTrellis.ENCODER_DOWN };
       } else if (i == 32) {
         const diff = data[2] - 100;
         this.#encoder += diff;
-        event = {type: NeoTrellis.ENCODER, diff: diff};
+        event = { type: NeoTrellis.ENCODER, diff: diff };
       }
     } else if (type == NeoTrellis.NOTE_OFF) {
       const i = data[1];
       if (i < 32) {
         pressed[i] = false;
-        event = {type: NeoTrellis.BUTTON_UP, index: i};
+        event = { type: NeoTrellis.BUTTON_UP, index: i };
       } else if (i == 33) {
         this.#encoderPressed = false;
-        event = {type: NeoTrellis.ENCODER_UP};
+        event = { type: NeoTrellis.ENCODER_UP };
       }
     }
     this.#callback(this, event);
