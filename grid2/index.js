@@ -10,14 +10,10 @@ function init() {
 
   const grid = new Grid(container, gridHandler);
   function gridHandler(i, pressed) {
-    console.log("pressed", i, pressed);
+    grid.set(i, pressed ? BLUE : WHITE);
   }
 
   function update(t) {
-    for (let i = 0; i < 128; i++) {
-      grid.set(i, Math.floor(Math.random() * 9));
-    }
-
     grid.draw();
     window.requestAnimationFrame(update);
   }

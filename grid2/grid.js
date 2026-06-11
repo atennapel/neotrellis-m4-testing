@@ -67,11 +67,11 @@ class Grid {
         }
 
         ongoingTouches.set(id, i);
-        buttonTouches.get(i).add(id);
         if (buttonTouches.get(i).size === 0) {
           grid.#pressed[i] = true;
           eventHandler(i, true);
         }
+        buttonTouches.get(i).add(id);
       }
     }
 
@@ -127,5 +127,9 @@ class Grid {
     const y = Math.max(0, Math.min(7, Math.floor((e.pageY / window.innerHeight) * 8)));
     const i = y * 16 + x;
     return i;
+  }
+
+  static fromPos(x, y) {
+    return y * 16 + x;
   }
 }
