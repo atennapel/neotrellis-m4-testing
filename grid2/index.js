@@ -59,6 +59,49 @@ async function init() {
     }
   }
 
+  const keys = new Map();
+  window.addEventListener("keydown", e => {
+    keys.set(e.key, true);
+    const note = key2note(e.key);
+    if (note >= 0) {
+      const freq = Tone.Frequency(note, "midi");
+      kits[curKit].triggerAttack(freq, Tone.now(), 0.8);
+    }
+  });
+  window.addEventListener("keyup", e => {
+    if (keys.get(e.key)) {
+      keys.set(e.key, false);
+      const note = key2note(e.key);
+      if (note >= 0) {
+        const freq = Tone.Frequency(note, "midi");
+        synth.triggerRelease(freq);
+      }
+    }
+  });
+
+  function key2note(k) {
+    switch (k) {
+      case "z": return 60; // c
+      case "s": return 61; // c#
+      case "x": return 62; // d
+      case "d": return 63; // d#
+      case "c": return 64; // e
+      case "v": return 65; // f
+      case "g": return 66; // f#
+      case "b": return 67; // g
+      case "h": return 68; // g#
+      case "n": return 69; // a
+      case "j": return 70; // a#
+      case "m": return 71; // b
+      case ",": return 72; // c
+      case "l": return 73; // c#
+      case ".": return 74; // d
+      case ";": return 75; // d#
+      case "/": return 76; // e
+      default: -1;
+    }
+  }
+
   function draw() {
     grid.clear();
     for (let i = 0; i < 128; i++) {
