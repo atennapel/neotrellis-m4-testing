@@ -23,13 +23,13 @@ async function init() {
     }
   }
 
-  const synth = new Tone.PolySynth(Tone.Synth).toDestination();
+  const reverb = new Tone.Reverb({ decay: 0.001 }).toDestination();
+  reverb.wet.value = 0;
+  await reverb.generate();
+
+  const synth = new Tone.PolySynth(Tone.Synth).connect(reverb);
   synth.maxPolyphony = 100;
 
-  const reverb = new Tone.Reverb({
-    decay: 4,
-    wet: 0.25
-  }).toDestination();
   const pluck = new Tone.PluckSynth({
     attackNoise: 1.5,
     dampening: 6000,
@@ -46,7 +46,7 @@ async function init() {
       sustain: 0.4,
       release: 2.5
     }
-  }).toDestination();
+  }).connect(reverb);
   synth2.maxPolyphony = 100;
 
   const synth3 = new Tone.PolySynth(Tone.AMSynth, {
@@ -60,7 +60,7 @@ async function init() {
       sustain: 0.6,
       release: 1.2
     }
-  }).toDestination();
+  }).connect(reverb);
   synth3.maxPolyphony = 100;
 
   const synth4 = new Tone.PolySynth(Tone.FMSynth, {
@@ -72,7 +72,7 @@ async function init() {
       sustain: 0.2,
       release: 1.5
     }
-  }).toDestination();
+  }).connect(reverb);
   synth4.maxPolyphony = 100;
 
   const synth5 = new Tone.PolySynth(Tone.Synth, {
@@ -85,7 +85,7 @@ async function init() {
       sustain: 0,
       release: 0.8
     }
-  }).toDestination();
+  }).connect(reverb);
   synth5.maxPolyphony = 100;
 
   const synth6 = new Tone.PolySynth(Tone.Synth, {
@@ -98,7 +98,7 @@ async function init() {
       sustain: 0.7,
       release: 2
     }
-  }).toDestination();
+  }).connect(reverb);
   synth6.maxPolyphony = 100;
 
   const kits = Array(KITS.length);
@@ -114,7 +114,7 @@ async function init() {
         "A4": "tom3.mp3",
       },
       baseUrl: `https://tonejs.github.io/audio/drum-samples/${kit}/`,
-    }).toDestination();
+    }).connect(reverb);
     kits[i] = sampler;
   }
 
@@ -225,4 +225,43 @@ async function init() {
 
   for (let i = 0; i < 16; i++)
     grid.setText(i + 112, `${i + 1}`);
+
+  const midiAccess = await navigator.requestMIDIAccess();
+  for (const entry of midiAccess.inputs) {
+    const input = entry[1];
+    if (input.name === "Launchkey Mini MK4 25 MIDI") {
+      input.onmidimessage = onMIDIMesage;
+    }
+  }
+
+  function onMIDIMesage(event) {
+    const data = event.data;
+    if (data[0] >= 144 && data[0] <= 159) {
+      const note = data[1];
+      const vel = data[2];
+      if (vel > 0) {
+        const freq = Tone.Frequency(note, "midi");
+        instruments[currentInstrument].triggerAttack(freq, Tone.now(), vel / 125);
+      } else {
+        const freq = Tone.Frequency(note, "midi");
+        instruments[currentInstrument].triggerRelease(freq);
+      }
+    } else if (data[0] >= 128 && data[0] <= 143) {
+      const note = data[1];
+      const freq = Tone.Frequency(note, "midi");
+      instruments[currentInstrument].triggerRelease(freq);
+    } else if (data[0] === 176) {
+      const knob = data[1];
+      const value = data[2];
+      if (knob === 21) {
+        reverb.decay = (value / 10) + 0.001;
+        reverb.generate();
+        console.log(reverb.decay);
+      } else if (knob === 22) {
+        reverb.wet.value = value / 127;
+      }
+    } else if (data[0] !== 248) {
+      console.log(data);
+    }
+  }
 }
