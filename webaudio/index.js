@@ -11,28 +11,12 @@ async function init() {
   master.connect(ctx.destination);
 
   document.addEventListener("keydown", e => {
-    switch (e.key) {
-      case "z": return noteOn(60, 1);
-      case "x": return noteOn(62, 1);
-      case "c": return noteOn(64, 1);
-      case "v": return noteOn(65, 1);
-      case "b": return noteOn(67, 1);
-      case "n": return noteOn(69, 1);
-      case "m": return noteOn(71, 1);
-      case ",": return noteOn(72, 1);
-    }
+    const n = keyToNote(e.key);
+    if (n >= 0) noteOn(n, 1);
   });
   document.addEventListener("keyup", e => {
-    switch (e.key) {
-      case "z": return noteOff(60);
-      case "x": return noteOff(62);
-      case "c": return noteOff(64);
-      case "v": return noteOff(65);
-      case "b": return noteOff(67);
-      case "n": return noteOff(69);
-      case "m": return noteOff(71);
-      case ",": return noteOff(72);
-    }
+    const n = keyToNote(e.key);
+    if (n >= 0) noteOff(n);
   });
 
   const midiAccess = await navigator.requestMIDIAccess();
@@ -116,5 +100,44 @@ function noteOff(note) {
     gain.gain.setValueAtTime(gain.gain.value, now);
     gain.gain.linearRampToValueAtTime(0, now + 0.05);
     osc.stop(now + 0.05);
+  }
+}
+
+function keyToNote(k) {
+  switch (k) {
+    case "z": return 60;
+    case "x": return 61;
+    case "c": return 62;
+    case "v": return 63;
+    case "b": return 64;
+    case "n": return 65;
+    case "m": return 66;
+    case ",": return 67;
+    case ".": return 68;
+    case "/": return 69;
+    
+    case "a": return 65;
+    case "s": return 66;
+    case "d": return 67;
+    case "f": return 68;
+    case "g": return 69;
+    case "h": return 70;
+    case "j": return 71;
+    case "k": return 72;
+    case "l": return 73;
+    case ";": return 74;
+    
+    case "q": return 70;
+    case "w": return 71;
+    case "e": return 72;
+    case "r": return 73;
+    case "t": return 74;
+    case "y": return 75;
+    case "u": return 76;
+    case "i": return 77;
+    case "o": return 78;
+    case "p": return 79;
+
+    default: return -1;
   }
 }
