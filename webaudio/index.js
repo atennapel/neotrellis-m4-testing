@@ -54,52 +54,36 @@ const notes = Array(128);
 function adjustMaster() {
   const activeCount = active.size;
   const gain = activeCount > 0 ? 0.8 / Math.sqrt(activeCount) : 0.8;
-  master.gain.setTargetAtTime(gain, ctx.currentTime, 0.01);
+  const now = ctx.currentTime;
+  master.gain.cancelAndHoldAtTime(now)
+  master.gain.linearRampToValueAtTime(gain, now + 0.01);
 }
 
-function noteOn(note, vel) {
+function noteOn(note, gain) {
   const now = ctx.currentTime;
-  const vol = vel * 0.2;
-  const nodes = notes[note];
-  if (!nodes) {
+  const vol = gain * 0.2;
+  const instr = notes[note];
+  if (!instr) {
     active.add(note);
     adjustMaster();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    notes[note] = { osc, gain };
-
-    osc.type = "sine";
-    osc.frequency.value = freq(note);
-
-    gain.gain.value = 0;
-
-    osc.connect(gain);
-    gain.connect(master);
-
-    gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(vol, now + 0.01);
-    osc.start(now);
+    const newinstr = new Instrument(ctx);
+    notes[note] = newinstr;
+    newinstr.connect(master);
+    newinstr.setNote(note);
+    newinstr.setGain(vol);
+    newinstr.start();
   } else {
-    const { gain } = nodes;
-    gain.gain.cancelScheduledValues(now);
-    gain.gain.setValueAtTime(gain.gain.value, now);
-    gain.gain.linearRampToValueAtTime(vol, now + 0.01);
+    instr.setGain(vol);
   }
 }
 
 function noteOff(note) {
-  const nodes = notes[note];
-  if (nodes) {
+  const instr = notes[note];
+  if (instr) {
     active.delete(note);
-    adjustMaster();
     notes[note] = null;
-    const { osc, gain } = nodes;
-
-    const now = ctx.currentTime;
-    gain.gain.cancelScheduledValues(now);
-    gain.gain.setValueAtTime(gain.gain.value, now);
-    gain.gain.linearRampToValueAtTime(0, now + 0.05);
-    osc.stop(now + 0.05);
+    instr.stop();
+    adjustMaster();
   }
 }
 
@@ -139,5 +123,56 @@ function keyToNote(k) {
     case "p": return 79;
 
     default: return -1;
+  }
+}
+
+class Instrument {
+  constructor(ctx) {
+    this.ctx = ctx;
+
+    const osc = ctx.createOscillator();
+    this.osc = osc;
+    osc.type = "sine";
+
+    const gain = ctx.createGain();
+    this.gain = gain;
+    gain.gain.value = 0;
+
+    osc.connect(gain);
+  }
+
+  connect(tar) {
+    this.gain.connect(tar);
+  }
+
+  start() {
+    console.log("start");
+    this.osc.start();
+  }
+
+  stop() {
+    console.log("stop");
+    const now = this.ctx.currentTime;
+    const osc = this.osc;
+    const gain = this.gain;
+    gain.gain.cancelAndHoldAtTime(now);
+    gain.gain.linearRampToValueAtTime(0, now + 0.05);
+    osc.stop(now + 0.05);
+    osc.onended = () => osc.disconnect();
+  }
+
+  setNote(note) {
+    console.log("setNote", note);
+    const now = this.ctx.currentTime;
+    const osc = this.osc;
+    osc.frequency.setValueAtTime(freq(note), now);
+  }
+
+  setGain(vol) {
+    console.log("setGain", vol);
+    const now = this.ctx.currentTime;
+    const gain = this.gain;
+    gain.gain.cancelAndHoldAtTime(now);
+    gain.gain.linearRampToValueAtTime(vol, now + 0.05);
   }
 }
