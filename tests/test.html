@@ -1,0 +1,73 @@
+clicks.
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WebAudio Sine Trigger</title>
+<style>
+body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: #f5f5f5;
+    margin: 0;
+}
+
+button {
+    font-size: 24px;
+    padding: 16px 32px;
+    cursor: pointer;
+}
+</style>
+</head>
+<body>
+
+<button id="playButton">Play Sine</button>
+
+<script>
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+async function ensureAudioRunning() {
+    if (audioCtx.state === "suspended") {
+        await audioCtx.resume();
+    }
+}
+
+function playTone(freq = 440, duration = 0.2) {
+    const now = audioCtx.currentTime;
+
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.type = "sine";
+    osc.frequency.value = freq;
+
+    // 5 ms attack
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(1.0, now + 0.005);
+
+    // Hold
+    gain.gain.setValueAtTime(1.0, now + duration - 0.005);
+
+    // 5 ms release
+    gain.gain.linearRampToValueAtTime(0.0, now + duration);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.start(now);
+    osc.stop(now + duration + 0.01);
+}
+
+document.getElementById("playButton").addEventListener("click", async () => {
+    await ensureAudioRunning();
+    playTone();
+});
+</script>
+
+</body>
+</html>

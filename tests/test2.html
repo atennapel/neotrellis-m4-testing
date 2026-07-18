@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tone.js Sine Trigger</title>
+
+<script src="https://unpkg.com/tone@15.1.22/build/Tone.js"></script>
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    background: #f5f5f5;
+}
+
+button {
+    font-size: 24px;
+    padding: 16px 32px;
+    cursor: pointer;
+}
+</style>
+</head>
+<body>
+
+<button id="playButton">Play Sine</button>
+
+<script>
+const synth = new Tone.Synth({
+    oscillator: {
+        type: "sine"
+    },
+    envelope: {
+        attack: 0.005,    // 5 ms
+        decay: 0,
+        sustain: 1,
+        release: 0.005    // 5 ms
+    }
+}).toDestination();
+
+document.getElementById("playButton").addEventListener("click", async () => {
+    // Required once after a user gesture
+    await Tone.start();
+
+    // Play A4 for 200 ms
+    synth.triggerAttackRelease("A4", 0.2);
+});
+</script>
+
+</body>
+</html>
